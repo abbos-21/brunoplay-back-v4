@@ -1,0 +1,62 @@
+# HTTPS is automatic (Let's Encrypt). Caddy replaces any X-Forwarded-For sent by a client with the real address,
+# which is what TRUSTED_PROXY=true in the API relies on. Only Caddy can reach the API port.
+#
+# Two sites, both serve their web app AND forward /api to the API (so nothing needs CORS):
+#   {$APP_DOMAIN}    the game (the Telegram Mini App)         files in /srv/app
+#   {$ADMIN_DOMAIN}  the admin panel                          files in /srv/admin
+# The web apps are built into $WWW_DIR/app and $WWW_DIR/admin by deploy/build-web.sh.
+
+(common) {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	request_body {
+		max_size 2MB
+	}
+
+	# the ad network and Telegram call these without a browser
+	@webhooks path /api/webhooks/*
+	header @webhooks Cache-Control "no-store"
+
+	handle /api/* /readyz /healthz {
+		reverse_proxy api:8080 {
+			header_up X-Real-IP {remote_host}
+			health_uri /readyz
+			health_interval 10s
+		}
+	}
+}
+
+(spa) {
+	# file names under /assets contain a hash, so they can be kept for a year; index.html must always be fetched again
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	@page not path /assets/*
+	header @page Cache-Control "no-cache"
+
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+{$APP_DOMAIN} {
+	import common
+	root * /srv/app
+	import spa
+}
+
+{$ADMIN_DOMAIN} {
+	import common
+	root * /srv/admin
+	# To let only your own address in, uncomment (replace with your IP):
+	# @blocked not remote_ip 203.0.113.7
+	# respond @blocked "Not found" 404
+	import spa
+}

@@ -1,0 +1,103 @@
+# BrunoPlay v4 on one VPS: PostgreSQL (with WAL archiving for point-in-time recovery), the API, the worker, and Caddy (HTTPS).
+# Usage: copy .env.example to .env and fill it in, copy deploy/.env.deploy.example to deploy/.env, run ./build-web.sh, then ./deploy.sh
+name: brunoplay
+
+x-app: &app
+  image: brunoplay:${VERSION:-latest}
+  build:
+    context: ..
+    args:
+      VERSION: ${VERSION:-dev}
+  env_file: ../.env
+  restart: unless-stopped
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+  logging:
+    driver: json-file
+    options: {max-size: "20m", max-file: "5"}
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brunoplay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: brunoplay
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal/%f && cp %p /wal/%f     # every finished WAL segment is kept: point-in-time recovery
+      - -c
+      - archive_timeout=60
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-512MB}
+      - -c
+      - synchronous_commit=on                                    # a committed money operation survives a crash
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - wal:/wal
+      - backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brunoplay -d brunoplay"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    shm_size: 256mb
+
+  migrate:
+    <<: *app
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["migrate"]
+
+  api:
+    <<: *app
+    command: ["api"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    expose: ["8080"]
+    # for a reverse proxy running on the server itself (nginx): reachable from this machine only, never from outside
+    ports: ["127.0.0.1:${API_PORT:-8085}:8080"]
+
+  worker:
+    <<: *app
+    command: ["worker"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    # only started with COMPOSE_PROFILES=caddy (deploy/.env). With nginx on the server leave it off.
+    profiles: ["caddy"]
+    ports: ["80:80", "443:443"]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-app.invalid}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-admin.invalid}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${WWW_DIR:-/opt/brunoplay/www}/app:/srv/app:ro
+      - ${WWW_DIR:-/opt/brunoplay/www}/admin:/srv/admin:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  wal:
+  backups:
+  caddy_data:
+  caddy_config:

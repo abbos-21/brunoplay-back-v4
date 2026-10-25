@@ -1,0 +1,69 @@
+
+== Rates (1 TON = $1.24)
+  1 TON = 990,000 coins   (1,000,000 coins = $1.25)
+  1 TON = 71 stars   (one star = $0.0175 when bought with TON, +10% bonus)
+  one star = about 10,400 coins in value
+
+== Fishing cards
+  lvl  tank   speed/s  fill   mining upgrade        capacity upgrade
+    1    400  0.02222   5.0h  -                     -
+    2    600  0.03333   5.0h  800 coins             600 coins
+    3    900  0.05556   4.5h  2,000 coins           1,500 coins
+    4   1300  0.08025   4.5h  4,500 coins           3,500 coins
+    5   1900  0.13194   4.0h  9,000 coins           7,000 coins
+    6   2700   0.1875   4.0h  40 stars              30 stars
+    7   3800  0.30159   3.5h  70 stars              55 stars
+    8   5300  0.42063   3.5h  110 stars             90 stars
+    9   7400  0.68519   3.0h  170 stars             140 stars
+   10  10000  0.92593   3.0h  260 stars             220 stars
+  levels 1-5 cost 28,900 coins in total; levels 6-10 cost 1,185 stars ($17 of income) for both cards
+
+== What the games give back (a good game gives back less than it takes)
+  spin Bronze    price    30  average win    21.1 stars  gives back 70%  (Heart or Frog: 0.00% of spins)
+  spin Silver    price    75  average win    54.1 stars  gives back 72%  (Heart or Frog: 0.25% of spins)
+  spin Gold      price   150  average win   112.5 stars  gives back 75%  (Heart or Frog: 1.00% of spins)
+  spin Platinum  price   400  average win   312.0 stars  gives back 78%  (Heart or Frog: 3.91% of spins)
+  spin Diamond   price  1000  average win   800.0 stars  gives back 80%  (Heart or Frog: 11.07% of spins)
+  chest round price 20  average win 14.8 stars  gives back 74%
+  payout guard: a tier never pays more than 85% of what it took in over 72 h
+
+== What a player can earn for free
+  a new player, 3 visits a day: about 4,780 coins a day ($0.0060)
+  a committed player, 5 visits and 12 bonus ads: about 7,250 coins a day ($0.0091)
+  first payout needs level 2, 0 days and 50,000 coins ($0.06); the most one account can ever take out is 99,000,000 coins ($123.75)
+
+== BASE case: an ad earns $0.0020, buying is 1x, 25% of won gifts are really sent, TON moves x1, 3% are farm accounts
+  player                share      ads  purchases   payouts    gifts  first payout
+  Leaves in 2 days        49%    $0.03      $0.00     $0.00    $0.00  never   (level 3)
+  Casual, 10 days         26%    $0.24      $0.00     $0.07    $0.00  day 9   (level 4)
+  Regular, 45 days        13%    $1.64      $0.21     $0.56    $0.05  day 7   (level 4)
+  Grinder, 90 days         7%    $4.27      $0.85     $1.48    $0.21  day 6   (level 4)
+  Spender, 90 days         2%    $1.82     $25.49     $1.62    $4.17  day 6   (level 4)
+  Whale, 90 days           0%    $1.83    $169.96     $2.79   $42.89  day 6   (level 6, level 5 on day 20)
+  Farm account             3%    $0.34      $0.00     $0.22    $0.00  day 6   (level 4)
+  per 1,000 new players:  ads $630  +  star purchases $917  =  income $1,547
+                          payouts to players $234  +  real gifts $186  +  free stars $0  =  cost $420
+                          PROFIT $1,126  (73% of income)
+
+== WORST case: an ad earns $0.0007, buying is 0.4x, 50% of won gifts are really sent, TON moves x1.6, 6% are farm accounts
+  per 1,000 new players:  ads $211  +  star purchases $452  =  income $663
+                          payouts to players $373  +  real gifts $118  +  free stars $0  =  cost $492
+                          PROFIT $172  (26% of income)
+
+== BEST case: an ad earns $0.0060, buying is 1.5x, 10% of won gifts are really sent, TON moves x0.7, 1% are farm accounts
+  per 1,000 new players:  ads $1,917  +  star purchases $1,214  =  income $3,131
+                          payouts to players $164  +  real gifts $132  +  free stars $0  =  cost $296
+                          PROFIT $2,834  (91% of income)
+
+== NOBUY case: an ad earns $0.0020, buying is 0x, 0% of won gifts are really sent, TON moves x1, 3% are farm accounts
+  per 1,000 new players:  ads $630  +  star purchases $0  =  income $630
+                          payouts to players $234  +  real gifts $0  +  free stars $0  =  cost $234
+                          PROFIT $396  (63% of income)
+
+== NOBUYWORST case: an ad earns $0.0007, buying is 0x, 0% of won gifts are really sent, TON moves x1.6, 6% are farm accounts
+  per 1,000 new players:  ads $211  +  star purchases $0  =  income $211
+                          payouts to players $373  +  real gifts $0  +  free stars $0  =  cost $374
+                          PROFIT -$163  (-77% of income)
+
+== Worst single account: takes out 99,000,000 coins = $123.75 (at most $0.50 a day). A grinder pays $4.27 in ads over 90 days.
+
