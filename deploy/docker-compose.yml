@@ -18,9 +18,23 @@ x-app: &app
     options: {max-size: "20m", max-file: "5"}
 
 services:
+  # Docker creates the volumes owned by root, but PostgreSQL runs as the postgres user: without this the transaction-log archive
+  # (point-in-time recovery) and the base backups cannot be written.
+  init-volumes:
+    image: postgres:17
+    user: root
+    restart: "no"
+    command: ["sh", "-c", "chown postgres:postgres /wal /backups"]
+    volumes:
+      - wal:/wal
+      - backups:/backups
+
   postgres:
     image: postgres:17
     restart: unless-stopped
+    depends_on:
+      init-volumes:
+        condition: service_completed_successfully
     environment:
       POSTGRES_USER: brunoplay
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}

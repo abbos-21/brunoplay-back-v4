@@ -22,7 +22,7 @@ echo "== building $VERSION"
 docker compose build
 
 echo "== backing up before the migration"
-./backup.sh --quick || echo "(quick backup failed: continuing, the nightly backup is the real one)"
+timeout 180 ./backup.sh --quick || echo "(quick backup failed: continuing, the nightly backup is the real one)"
 
 echo "== migrating"
 docker compose run --rm migrate
