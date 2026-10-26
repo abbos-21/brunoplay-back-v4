@@ -621,6 +621,29 @@ func TestAutomaticPayoutSendsOnce(t *testing.T) {
 	}
 }
 
+// The API process never holds the wallet (only the worker does), yet a small request must still be marked automatic.
+func TestAutomaticPayoutIsDecidedWithoutASenderInTheAPI(t *testing.T) {
+	e := newEnv(t)
+	e.autoSetup(nil)
+	p := e.login(331, "en", "")
+	e.give(p, ledger.Coin, 1000000)
+	r := e.wd(p, 20000, walletAddr(8))
+	id := int64(r.JSON(t)["withdrawal"].(map[string]any)["id"].(float64))
+	var auto bool
+	_ = e.d.Pool.QueryRow(context.Background(), `SELECT auto FROM withdrawals WHERE id=$1`, id).Scan(&auto)
+	if !auto {
+		t.Fatal("a small request must be automatic even when this process has no sender")
+	}
+	sender := &fakeSender{hash: "hash-w"}
+	worker := withdrawals.New(e.d.Pool, e.d.Settings, e.d.Players, e.d.Chain, sender, true)
+	worker.Now = func() time.Time { return e.now }
+	worker.Alert = func(ctx context.Context, text string) {}
+	_, _ = worker.RunPayouts(context.Background(), 10)
+	if len(sender.calls) != 1 {
+		t.Fatalf("the worker must pay it: %v", sender.calls)
+	}
+}
+
 func TestAutomaticPayoutLimitsAndExclusions(t *testing.T) {
 	e := newEnv(t)
 	sender := &fakeSender{hash: "h"}

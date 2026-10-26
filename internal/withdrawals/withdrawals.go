@@ -253,7 +253,8 @@ func (s *Service) Create(ctx context.Context, playerID, coins int64, address str
 			return apperr.WdLimit
 		}
 		auto := false
-		if s.autoSwitch && s.sender != nil && autoMax > 0 && receive <= ton.NanoOfTon(autoMax) {
+		// the API process has no sender (only the worker opens the wallet), so this looks at the switch, not at the sender
+		if s.autoSwitch && autoMax > 0 && receive <= ton.NanoOfTon(autoMax) {
 			var usedToday int64
 			if err := tx.QueryRow(ctx, `SELECT COALESCE(sum(amount_nano),0) FROM withdrawals WHERE auto AND status IN ('PENDING','PROCESSING','COMPLETED') AND created_at >= $1`,
 				gameday.Of(now)).Scan(&usedToday); err != nil {
