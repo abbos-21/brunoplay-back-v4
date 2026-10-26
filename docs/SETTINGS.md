@@ -66,8 +66,8 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ride.max_coins_per_day` | int | **required** | Coins a player can earn from Ride per day |
 | `ride.max_coins_per_second` | float | `8` | Most coins one can pick up per second |
 | `ride.max_duration_seconds` | int | `900` | A run can be saved for this long after it starts (seconds) |
-| `ride.max_points_per_second` | float | `50` | Most score points per second |
-| `ride.min_duration_seconds` | int | `5` | Shortest believable Ride run (seconds) |
+| `ride.max_points_per_second` | float | `70` | Most score points per second (the game scores 60 per second) |
+| `ride.min_duration_seconds` | int | `3` | Shortest believable Ride run (seconds); the game itself cannot end a run before about 4.5 s, so keep this below that |
 | `ride.run_cost_stars` | int | **required** | Ride run price (stars) |
 | `ride.spawn_delay_seconds` | int | `3` | Seconds before obstacles and coins appear |
 | `spin.odds` | json | **required** | Spin odds: {tier:{giftKey:weight}} |

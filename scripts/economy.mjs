@@ -163,7 +163,7 @@ export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
     'ride.max_coins_per_day': 4000,
     'ride.max_coins_per_second': 8,
     'ride.max_points_per_second': 70,
-    'ride.min_duration_seconds': 5,
+    'ride.min_duration_seconds': 3,
     'ride.max_duration_seconds': 900,
     'ride.spawn_delay_seconds': 3,
     // the safety net for the prize games: over any 72 hours a tier never pays out more than 85% of what it took in
