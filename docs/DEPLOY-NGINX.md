@@ -9,18 +9,18 @@ Internet ──► nginx (80/443, already there) ──► 127.0.0.1:8085 ──
                                                                    worker (jobs, bot messages, TON watcher)
 ```
 
-Plan about 45 minutes. Lines starting with `$` are typed on the server, unless it says "on your PC".
+Plan about 45 minutes. Every command is typed on the server unless it says "on your PC". Each grey box can be copied and pasted as a whole, except where a line says otherwise (the editor `nano` and the password prompts need their own paste).
 
 ## 0. Look at what the server already has (5 min)
 
 Nothing here changes anything. Send me the output if anything looks different from what is described.
 
 ```bash
-$ lsb_release -ds; free -h | head -2; df -h / | tail -1          # system, memory, free disk
-$ nginx -v; sudo nginx -T 2>/dev/null | grep -E "server_name|listen" | sort -u    # nginx and the sites it serves
-$ docker --version; docker compose version                        # Docker installed? (if not: step 2)
-$ certbot --version                                               # certbot installed? (if not: step 6)
-$ sudo ss -ltnp | grep -E ':(80|443|5432|8085) '                  # who uses these ports
+lsb_release -ds; free -h | head -2; df -h / | tail -1          # system, memory, free disk
+nginx -v; sudo nginx -T 2>/dev/null | grep -E "server_name|listen" | sort -u    # nginx and the sites it serves
+docker --version; docker compose version                        # Docker installed? (if not: step 2)
+certbot --version                                               # certbot installed? (if not: step 6)
+sudo ss -ltnp | grep -E ':(80|443|5432|8085) '                  # who uses these ports
 ```
 
 * Port **8085** must be free. If something uses it, pick another number and use it everywhere below instead of 8085.
@@ -38,9 +38,9 @@ The server has a fixed address, so you do not need DuckDNS's update script. Cert
 ## 2. Docker (skip if step 0 showed it)
 
 ```bash
-$ curl -fsSL https://get.docker.com | sudo sh
-$ sudo usermod -aG docker $USER && newgrp docker
-$ docker run --rm hello-world | head -3
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER && newgrp docker
+docker run --rm hello-world | head -3
 ```
 
 ## 3. Get the code (5 min)
@@ -48,34 +48,34 @@ $ docker run --rm hello-world | head -3
 The repository is private, so give the server a read-only key:
 
 ```bash
-$ ssh-keygen -t ed25519 -f ~/.ssh/brunoplay_deploy -N "" -C "brunoplay-vps"
-$ cat ~/.ssh/brunoplay_deploy.pub
+ssh-keygen -t ed25519 -f ~/.ssh/brunoplay_deploy -N "" -C "brunoplay-vps"
+cat ~/.ssh/brunoplay_deploy.pub
 ```
 
 On GitHub open the repository `brunoplay-back-v4` → **Settings → Deploy keys → Add deploy key**, paste the line, leave "Allow write access" **off**.
 
 ```bash
-$ cat >> ~/.ssh/config <<'EOF'
+cat >> ~/.ssh/config <<'EOF'
 Host github-brunoplay
   HostName github.com
   User git
   IdentityFile ~/.ssh/brunoplay_deploy
   IdentitiesOnly yes
 EOF
-$ sudo mkdir -p /opt/brunoplay && sudo chown $USER:$USER /opt/brunoplay
-$ git clone git@github-brunoplay:abbos-21/brunoplay-back-v4.git /opt/brunoplay/brunoplay-back-v4
-$ cd /opt/brunoplay/brunoplay-back-v4 && git log --oneline | head -3
+sudo mkdir -p /opt/brunoplay && sudo chown $USER:$USER /opt/brunoplay
+git clone git@github-brunoplay:abbos-21/brunoplay-back-v4.git /opt/brunoplay/brunoplay-back-v4
+cd /opt/brunoplay/brunoplay-back-v4 && git log --oneline | head -3
 ```
 
 ## 4. Configure (10 min)
 
 ```bash
-$ cd /opt/brunoplay/brunoplay-back-v4
-$ cp .env.example .env && cp deploy/.env.deploy.example deploy/.env
-$ chmod 600 .env deploy/.env
-$ openssl rand -hex 32      # run it 4 times and keep the 4 values: JWT_SECRET, ADMIN_JWT_SECRET, BOT_WEBHOOK_SECRET, ADSGRAM_WEBHOOK_SECRET
-$ openssl rand -hex 24      # the database password
-$ nano .env
+cd /opt/brunoplay/brunoplay-back-v4
+cp .env.example .env && cp deploy/.env.deploy.example deploy/.env
+chmod 600 .env deploy/.env
+openssl rand -hex 32      # run it 4 times and keep the 4 values: JWT_SECRET, ADMIN_JWT_SECRET, BOT_WEBHOOK_SECRET, ADSGRAM_WEBHOOK_SECRET
+openssl rand -hex 24      # the database password
+nano .env
 ```
 
 Fill in `.env` (leave the other lines as they are):
@@ -100,7 +100,7 @@ Fill in `.env` (leave the other lines as they are):
 | `ALERT_CHAT_ID` | your own Telegram id, so the bot can alert you. Send the bot `/start`, then ask @userinfobot for your id |
 
 ```bash
-$ nano deploy/.env
+nano deploy/.env
 ```
 Set `POSTGRES_PASSWORD` to the same database password, leave `COMPOSE_PROFILES=` **empty** (that keeps Caddy off, nginx is used) and `API_PORT=8085`.
 If memory is tight add `PG_SHARED_BUFFERS=128MB`. Leave the backup lines for now (section 9).
@@ -108,16 +108,16 @@ If memory is tight add `PG_SHARED_BUFFERS=128MB`. Leave the backup lines for now
 ## 5. Start the backend (10 min)
 
 ```bash
-$ cd /opt/brunoplay/brunoplay-back-v4/deploy
-$ ./deploy.sh
+cd /opt/brunoplay/brunoplay-back-v4/deploy
+./deploy.sh
 ```
 
 It builds the image (a few minutes the first time), makes a database, applies the migrations, starts the API and the worker and waits until the API is healthy.
 At the end it prints `healthy: <version>`. If it does not, run `docker compose logs api` and send me the last lines.
 
 ```bash
-$ docker compose ps                         # postgres, api, worker: all "Up" / "healthy"
-$ curl -s http://127.0.0.1:8085/readyz      # {"status":"ready", ...}
+docker compose ps                         # postgres, api, worker: all "Up" / "healthy"
+curl -s http://127.0.0.1:8085/readyz      # {"status":"ready", ...}
 ```
 
 ## 6. nginx and the certificate (10 min)
@@ -125,7 +125,7 @@ $ curl -s http://127.0.0.1:8085/readyz      # {"status":"ready", ...}
 First an HTTP-only site, so certbot can prove you own the name:
 
 ```bash
-$ sudo nano /etc/nginx/sites-available/brunoplay-api
+sudo nano /etc/nginx/sites-available/brunoplay-api
 ```
 ```nginx
 server {
@@ -148,18 +148,18 @@ server {
 }
 ```
 ```bash
-$ sudo ln -s /etc/nginx/sites-available/brunoplay-api /etc/nginx/sites-enabled/
-$ sudo nginx -t && sudo systemctl reload nginx
-$ curl -s http://brunoplay-api.duckdns.org/readyz        # works over plain HTTP already
+sudo ln -s /etc/nginx/sites-available/brunoplay-api /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+curl -s http://brunoplay-api.duckdns.org/readyz        # works over plain HTTP already
 ```
 
 Then the certificate (install certbot first if step 0 said it is missing: `sudo apt -y install certbot python3-certbot-nginx`):
 
 ```bash
-$ sudo certbot --nginx -d brunoplay-api.duckdns.org --redirect -m you@yourmail.com --agree-tos -n
-$ sudo certbot renew --dry-run                           # renewal is automatic; this proves it works
-$ curl -s https://brunoplay-api.duckdns.org/readyz
-$ curl -s https://brunoplay-api.duckdns.org/api/app-info
+sudo certbot --nginx -d brunoplay-api.duckdns.org --redirect -m you@yourmail.com --agree-tos -n
+sudo certbot renew --dry-run                           # renewal is automatic; this proves it works
+curl -s https://brunoplay-api.duckdns.org/readyz
+curl -s https://brunoplay-api.duckdns.org/api/app-info
 ```
 
 Certbot rewrites that file to add the HTTPS part and the redirect; it does not touch the `recruting.uz` sites.
@@ -168,8 +168,8 @@ Telegram and Adsgram can only call a valid HTTPS address, which is why this step
 ## 7. Create the admin account (2 min)
 
 ```bash
-$ cd /opt/brunoplay/brunoplay-back-v4/deploy
-$ docker compose run --rm -e ADMIN_PASSWORD='a-long-unique-password' api admin-create --email you@yourmail.com
+cd /opt/brunoplay/brunoplay-back-v4/deploy
+docker compose run --rm -e ADMIN_PASSWORD='a-long-unique-password' api admin-create --email you@yourmail.com
 ```
 
 Keep that password in a password manager. The admin panel itself is not online yet; the API accepts the admin login already, and the next step uses it.
@@ -179,13 +179,19 @@ Keep that password in a password manager. The admin panel itself is not online y
 Needs Node 20 or newer and a copy of the repository on your PC.
 
 ```bash
-$ cd "/c/Users/user/Desktop/bruno stuff/brunoplay-back-v4"
-$ read -s -p "admin password: " ADMIN_PASSWORD; export ADMIN_PASSWORD
-
-# 1) a dry run: shows what would be written, writes nothing
-$ node scripts/production-seed.mjs --api https://brunoplay-api.duckdns.org --email you@yourmail.com
-# 2) the real run (add what you already have; whatever you leave out is listed at the end and can be added later by running it again)
-$ node scripts/production-seed.mjs --api https://brunoplay-api.duckdns.org --email you@yourmail.com --apply \
+cd "/c/Users/user/Desktop/bruno stuff/brunoplay-back-v4"
+```
+Paste this line, then type the admin password and press Enter (nothing is shown while you type). Replace `you@yourmail.com`, the wallet, the block id and the links in the commands below with your own values.
+```bash
+read -s -p "admin password: " ADMIN_PASSWORD; export ADMIN_PASSWORD
+```
+A dry run first: it shows what would be written and writes nothing.
+```bash
+node scripts/production-seed.mjs --api https://brunoplay-api.duckdns.org --email you@yourmail.com
+```
+The real run (add what you already have; whatever you leave out is listed at the end and can be added later by running it again):
+```bash
+node scripts/production-seed.mjs --api https://brunoplay-api.duckdns.org --email you@yourmail.com --apply \
     --wallet UQ...your_ton_wallet --block-id YOUR_ADSGRAM_BLOCK --channel @your_channel --chat @your_chat \
     --support https://t.me/your_support --news https://t.me/your_channel
 ```
@@ -199,7 +205,7 @@ Run it again with `--apply` whenever TON moves more than about 20%.
 **The bot.** The API sets its own webhook when it starts. Check it (type the token yourself, do not paste it anywhere else):
 
 ```bash
-$ read -s -p "bot token: " T; echo; curl -s "https://api.telegram.org/bot$T/getWebhookInfo"; unset T
+read -s -p "bot token: " T; echo; curl -s "https://api.telegram.org/bot$T/getWebhookInfo"; unset T
 ```
 `url` must be `https://brunoplay-api.duckdns.org/api/webhooks/telegram` and `last_error_message` empty.
 
@@ -209,15 +215,15 @@ $ read -s -p "bot token: " T; echo; curl -s "https://api.telegram.org/bot$T/getW
 **Backups (do this today).** The simplest safe start is a nightly database dump kept for a week, and copied off the server:
 
 ```bash
-$ mkdir -p ~/backups && cat > ~/backup-brunoplay.sh <<'EOF'
+mkdir -p ~/backups && cat > ~/backup-brunoplay.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 cd /opt/brunoplay/brunoplay-back-v4/deploy
 docker compose exec -T postgres pg_dump -U brunoplay brunoplay | gzip > ~/backups/brunoplay-$(date -u +%Y%m%d-%H%M).sql.gz
 find ~/backups -name 'brunoplay-*.sql.gz' -mtime +7 -delete
 EOF
-$ chmod +x ~/backup-brunoplay.sh && ~/backup-brunoplay.sh && ls -lh ~/backups
-$ (crontab -l 2>/dev/null; echo '17 3 * * * /home/'"$USER"'/backup-brunoplay.sh') | crontab -
+chmod +x ~/backup-brunoplay.sh && ~/backup-brunoplay.sh && ls -lh ~/backups
+(crontab -l 2>/dev/null; echo '17 3 * * * /home/'"$USER"'/backup-brunoplay.sh') | crontab -
 ```
 A backup on the same server is not a backup if the server dies: regularly copy `~/backups` to your PC (`scp`) or set up the full point-in-time backup with a remote repository from `docs/OPERATIONS.md` section 4 before real money flows.
 
@@ -229,9 +235,9 @@ Until you have followed `docs/DEPLOY-VPS.md` section 3b (testnet first), keep `A
 ## 11. Updating later
 
 ```bash
-$ cd /opt/brunoplay/brunoplay-back-v4 && git pull
-$ cd deploy && ./deploy.sh              # builds, backs up, migrates, restarts; rolls back by itself if the API does not become healthy
-$ ./deploy.sh rollback                  # go back to the previous version by hand
+cd /opt/brunoplay/brunoplay-back-v4 && git pull
+cd deploy && ./deploy.sh              # builds, backs up, migrates, restarts; rolls back by itself if the API does not become healthy
+./deploy.sh rollback                  # go back to the previous version by hand
 ```
 
 ## 12. If something is wrong
