@@ -12,6 +12,8 @@
 //   --support / --news / --faq <https link>       links shown in the menu
 //   --channel @name / --chat @name                 your channel and chat for the "join" tasks
 //   --skip-tasks          do not create the starter tasks
+//   --only cards.,levels.  write only the settings whose names start with these prefixes (comma separated) and leave every other
+//                         value, and the tasks, exactly as they are. Use it to ship one change without undoing what was set by hand.
 //
 // Values only you know (wallet, Adsgram blocks, links, channels) are never invented: whatever you do not pass is listed at the end.
 import { buildSettings } from './economy.mjs'
@@ -95,7 +97,9 @@ const login = await api('POST', '/admin/auth/login', '', { email, password })
 const token = login.accessToken
 const current = await api('GET', '/admin/settings', token).catch(() => null)
 
-const keys = Object.keys(settings)
+const only = (opt('--only') ?? '').split(',').map((p) => p.trim()).filter(Boolean)
+const keys = Object.keys(settings).filter((k) => !only.length || only.some((p) => k.startsWith(p)))
+if (only.length) console.log(`Only the settings starting with: ${only.join(', ')} (${keys.length} values); nothing else is touched`)
 let ok = 0
 let changed = 0
 const failed = []
@@ -124,7 +128,7 @@ for (const key of keys) {
 console.log(`\n${keys.length} values: ${ok} already right, ${changed} ${apply ? 'written' : 'would be written'}, ${failed.length} failed`)
 
 // ---- starter tasks (only when there are none)
-if (!flag('--skip-tasks')) {
+if (!flag('--skip-tasks') && !only.length) {
   const existing = await api('GET', '/admin/tasks', token).catch(() => ({ tasks: [] }))
   const have = existing.tasks ?? existing.items ?? []
   if (have.length) {

@@ -36,21 +36,22 @@ Why a star costs $0.0175 with TON and about $0.0199 to buy with Telegram Stars: 
 ### Fishing
 | Level | Tank (coins) | Fills in | Mining upgrade | Capacity upgrade |
 |---|---|---|---|---|
-| 1 | 400 | 5 h | – | – |
-| 2 | 600 | 5 h | 800 coins | 600 coins |
-| 3 | 900 | 4.5 h | 2,000 coins | 1,500 coins |
-| 4 | 1,300 | 4.5 h | 4,500 coins | 3,500 coins |
-| 5 | 1,900 | 4 h | 9,000 coins | 7,000 coins |
-| 6 | 2,700 | 4 h | 40 stars | 30 stars |
-| 7 | 3,800 | 3.5 h | 70 stars | 55 stars |
-| 8 | 5,300 | 3.5 h | 110 stars | 90 stars |
-| 9 | 7,400 | 3 h | 170 stars | 140 stars |
-| 10 | 10,000 | 3 h | 260 stars | 220 stars |
+| 1 | 200 | 2 h | – | – |
+| 2 | 300 | 2 h | 800 coins | 600 coins |
+| 3 | 450 | 2 h | 2,000 coins | 1,500 coins |
+| 4 | 650 | 1.75 h | 4,500 coins | 3,500 coins |
+| 5 | 900 | 1.5 h | 9,000 coins | 7,000 coins |
+| 6 | 1,150 | 1.5 h | 40 stars | 30 stars |
+| 7 | 1,400 | 1.25 h | 70 stars | 55 stars |
+| 8 | 1,650 | 1.25 h | 110 stars | 90 stars |
+| 9 | 1,850 | 1 h | 170 stars | 140 stars |
+| 10 | 2,000 | 1 h | 260 stars | 220 stars |
 
-* A tank that fills every 3–5 hours matches how people open a Telegram game (three or four times a day), and every refill is two ads.
-* Levels 2–5 are paid in coins so a new player feels progress on day one (the first upgrade is affordable after about one day). From level 6 the price is in stars, which is where most of your star income comes from.
+* **Small tanks that fill fast, on purpose.** A tank that fills every 1 to 2 hours gives a player a reason to open the game many times a day (the "tank is full" message brings them back), and every collect is two ads. The first version had tanks of 400 to 10,000 coins filling in 3 to 5 hours: players opened the game three times a day and the big top tanks paid out more than the ads they brought. The numbers now keep the same earning power for a player who collects on time (about 2,000 coins a day at level 1, 14,000 at level 5) but pay it in many small collects.
+* **Why the tank stops at 2,000 coins.** One collect shows two ads, worth about $0.004 in a normal ad market ($0.0014 in a bad one), and 1,000 coins are worth $0.00125. A tank above about 2,000 coins pays more than its own ads in a bad market, so the top is capped there. Growth in the top levels is in speed (fills in 1 hour) more than in size.
+* Levels 2–5 are paid in coins so a new player feels progress on day one. From level 6 the price is in stars, which is where most of your star income comes from.
 * The second card must be nearly level with the first (`other_card_level`), so nobody races one card to the top and wrecks the pacing. Mining levels 5, 7 and 10 and capacity level 8 also need invited friends (2, 3, 5 and 3): that is your free growth.
-* The tank value grows about 25× from level 1 to 10 but the fill time shortens only from 5 h to 3 h, so a top player is paid more per cycle but not more cycles. The simulation shows that this stays well under what their ads earn you.
+* Simulation (per 1,000 new players, normal ad market, minimum withdrawal 20,000 coins): with the same number of opens as before the project already earns about 7% more than with the old tanks (each collect pays less); at 1.6 times as many opens about 20% more, at twice as many about 23% more. A regular player's first payout stays on day 4 to 5 as long as they open the game about twice as often as before, and comes about a day later if they do not.
 * `fishing.collect_min_percent` 10 (collect once the tank is 10% full).
 
 ### Boosters (30 days)

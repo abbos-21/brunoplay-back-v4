@@ -42,8 +42,12 @@ export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
   const starsPerTon = Math.max(1, round(tonUsd / A.tonPricePerStar))
 
   // ---- fishing cards. Capacity is the tank (coins); the mining rate makes the tank fill in `hours`.
-  const capacity = [400, 600, 900, 1300, 1900, 2700, 3800, 5300, 7400, 10000]
-  const hours = [5, 5, 4.5, 4.5, 4, 4, 3.5, 3.5, 3, 3]
+  // Small tanks that fill fast, so a player has a reason to open the game every one to two hours. The earning power for a
+  // player who collects on time is about the same as before at levels 1 to 7 (a bit more at 1 to 6, a bit less above), but it
+  // comes in many small collects instead of a few big ones. Every collect also shows ads, and a small collect pays less than
+  // the ads it brings, so more entries is better for the project. The old design was 400 ... 10000 coins filling in 5 ... 3 hours.
+  const capacity = [200, 300, 450, 650, 900, 1150, 1400, 1650, 1850, 2000]
+  const hours = [2, 2, 2, 1.75, 1.5, 1.5, 1.25, 1.25, 1, 1]
   const rate = capacity.map((c, i) => round(c / (hours[i] * 3600), 5))
   const L = (n, ru, en) => ({ en, ru })
 
