@@ -43,15 +43,25 @@ func NewTonSender(ctx context.Context, seed, version string, testnet bool) (*Ton
 		return nil, fmt.Errorf("connect to TON: %w", err)
 	}
 	api := ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry()
-	ver := wallet.V4R2
-	if strings.EqualFold(version, "v5r1") {
-		ver = wallet.V5R1Final
-	}
-	w, err := wallet.FromSeed(api, words, ver)
+	w, err := openWallet(api, words, version, testnet)
 	if err != nil {
 		return nil, fmt.Errorf("open payout wallet: %w", err)
 	}
 	return &TonSender{api: api, w: w, addr: w.WalletAddress().String()}, nil
+}
+
+// openWallet derives the payout wallet from its 24 words. version is "v4r2" (default) or "v5r1" (W5); a W5 wallet's address
+// depends on the network it lives on, so its configuration names the network.
+func openWallet(api wallet.TonAPI, words []string, version string, testnet bool) (*wallet.Wallet, error) {
+	var ver wallet.VersionConfig = wallet.V4R2
+	if strings.EqualFold(version, "v5r1") {
+		network := int32(wallet.MainnetGlobalID)
+		if testnet {
+			network = wallet.TestnetGlobalID
+		}
+		ver = wallet.ConfigV5R1Final{NetworkGlobalID: network, Workchain: 0}
+	}
+	return wallet.FromSeed(api, words, ver)
 }
 
 func (t *TonSender) Address() string { return t.addr }
