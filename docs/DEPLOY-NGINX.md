@@ -162,6 +162,12 @@ curl -s https://brunoplay-api.duckdns.org/readyz
 curl -s https://brunoplay-api.duckdns.org/api/app-info
 ```
 
+The bot's webhook is registered only when the API starts, and it needs working HTTPS. The API was started before that, so restart it once now:
+
+```bash
+cd ~/Desktop/bruno-stuff/brunoplay-back-v4/deploy && docker compose restart api && sleep 8 && docker compose logs api | grep -i "bot setup" || echo "bot setup: no error logged"
+```
+
 Certbot rewrites that file to add the HTTPS part and the redirect; it does not touch the `recruting.uz` sites.
 Telegram and Adsgram can only call a valid HTTPS address, which is why this step matters.
 
