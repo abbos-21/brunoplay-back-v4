@@ -162,7 +162,7 @@ export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
     'ride.run_cost_stars': 2,
     'ride.max_coins_per_day': 4000,
     'ride.max_coins_per_second': 8,
-    'ride.max_points_per_second': 50,
+    'ride.max_points_per_second': 70,
     'ride.min_duration_seconds': 5,
     'ride.max_duration_seconds': 900,
     'ride.spawn_delay_seconds': 3,
