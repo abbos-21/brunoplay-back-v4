@@ -46,9 +46,11 @@ services:
       - -c
       - archive_mode=on
       - -c
-      - archive_command=test ! -f /wal/%f && cp %p /wal/%f     # every finished WAL segment is kept: point-in-time recovery
+      # every finished WAL segment is kept, compressed (a mostly empty 16 MB segment shrinks to a few hundred KB): point-in-time recovery
+      - archive_command=test ! -f /wal/%f.gz && gzip -c %p > /wal/%f.gz.tmp && mv /wal/%f.gz.tmp /wal/%f.gz
       - -c
-      - archive_timeout=60
+      # a segment is closed at least every 5 minutes, so at most about 5 minutes of work can be missing from the archive
+      - archive_timeout=300
       - -c
       - max_connections=100
       - -c

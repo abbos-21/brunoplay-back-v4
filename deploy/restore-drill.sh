@@ -26,7 +26,7 @@ tar -xzf "$base/base.tar.gz" -C "$work/data"
 chmod 700 "$work/data"
 touch "$work/data/recovery.signal"
 {
-  echo "restore_command = 'cp /wal/%f %p'"
+  echo "restore_command = 'if [ -f /wal/%f.gz ]; then gunzip -c /wal/%f.gz > %p; else cp /wal/%f %p; fi'"
   [ -n "$target" ] && echo "recovery_target_time = '$target'" && echo "recovery_target_action = 'promote'"
 } >> "$work/data/postgresql.auto.conf"
 
