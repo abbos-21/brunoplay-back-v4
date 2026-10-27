@@ -53,6 +53,15 @@ set_kv deploy/.env APP_DOMAIN "$APP"
 set_kv deploy/.env ADMIN_DOMAIN "$ADMIN"
 set_kv deploy/.env WWW_DIR /opt/brunoplay/www
 
+# a small server (under 3 GB of RAM) gets smaller database memory and fewer connections, so deploys and peaks do not run it dry
+mem_mb="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+if [ "${mem_mb:-0}" -gt 0 ] && [ "$mem_mb" -lt 3000 ]; then
+  set_kv deploy/.env PG_SHARED_BUFFERS 384MB
+  set_kv deploy/.env PG_CACHE_SIZE 1GB
+  set_kv .env DB_MAX_CONNS 10
+  echo "Small server (${mem_mb} MB of RAM): database memory 384 MB, 10 connections per program."
+fi
+
 echo "Created .env and deploy/.env (permissions 600). Generated: the database password, JWT_SECRET, ADMIN_JWT_SECRET,"
 echo "BOT_WEBHOOK_SECRET and ADSGRAM_WEBHOOK_SECRET (new values: update the Reward URL in Adsgram with the new secret)."
 echo

@@ -37,6 +37,10 @@ docker compose up -d --remove-orphans postgres
 case ",${COMPOSE_PROFILES:-}" in *,caddy*) docker compose up -d caddy ;; esac   # Caddy only when asked for; with nginx it is not used
 docker compose up -d api worker
 
+# keep the disk tidy: dropped image layers, and a cap on the build cache (it can grow by gigabytes over many deploys)
+docker image prune -f >/dev/null 2>&1 || true
+docker builder prune -f --keep-storage 2GB >/dev/null 2>&1 || true
+
 echo "== waiting for the API"
 for i in $(seq 1 30); do
   status=$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q api)" 2>/dev/null || echo starting)
