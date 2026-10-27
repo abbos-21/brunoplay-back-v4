@@ -51,7 +51,7 @@ tmp="$final.tmp"
 
 echo "== $(date -u +%FT%TZ) dumping the database ($mode)"
 # shellcheck disable=SC2086
-$PG pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc -Z 6 > "$tmp"
+$PG pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc -Z 6 > "$tmp" < /dev/null   # no stdin: under "timeout" a read from the terminal would freeze it
 
 # a dump that is empty or cannot be read is worse than none: it must never replace a good one
 size="$(stat -c %s "$tmp")"
