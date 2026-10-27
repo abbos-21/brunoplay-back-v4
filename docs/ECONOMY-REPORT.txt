@@ -20,10 +20,10 @@
 
 == What the games give back (a good game gives back less than it takes)
   spin Bronze    price    30  average win    21.1 stars  gives back 70%  (Heart or Frog: 0.00% of spins)
-  spin Silver    price    75  average win    54.1 stars  gives back 72%  (Heart or Frog: 0.25% of spins)
-  spin Gold      price   150  average win   112.5 stars  gives back 75%  (Heart or Frog: 1.00% of spins)
-  spin Platinum  price   400  average win   312.0 stars  gives back 78%  (Heart or Frog: 3.91% of spins)
-  spin Diamond   price  1000  average win   800.0 stars  gives back 80%  (Heart or Frog: 11.07% of spins)
+  spin Silver    price    75  average win    54.1 stars  gives back 72%  (Heart or Frog: 0.00% of spins)
+  spin Gold      price   150  average win   112.5 stars  gives back 75%  (Heart or Frog: 0.00% of spins)
+  spin Platinum  price   400  average win   312.0 stars  gives back 78%  (Heart or Frog: 0.00% of spins)
+  spin Diamond   price  1000  average win   800.0 stars  gives back 80%  (Heart or Frog: 0.00% of spins)
   chest round price 20  average win 14.8 stars  gives back 74%
   payout guard: a tier never pays more than 85% of what it took in over 72 h
 

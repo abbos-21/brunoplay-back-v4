@@ -97,7 +97,9 @@ export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
     { tier: 'TIER_4', price_stars: 400, rtp: 0.78, name_en: 'Platinum', name_ru: 'Платина' },
     { tier: 'TIER_5', price_stars: 1000, rtp: 0.8, name_en: 'Diamond', name_ru: 'Алмаз' },
   ]
-  const odds = tuneSpin(gifts, spinTiers)
+  // the wheel pays stars and coins in the amounts the gifts are worth (set WHEEL_PAYS_GIFTS to bring the Telegram gifts back)
+  const giftOdds = tuneSpin(gifts, spinTiers)
+  const odds = WHEEL_PAYS_GIFTS ? giftOdds : cashOdds(giftOdds, gifts)
 
   // ---- chest: 3 picks per round, prizes drawn when the round is paid
   const chestPool = [
@@ -257,6 +259,34 @@ function tuneSpin(gifts, tiers) {
     const w = gifts.map((g) => base[g.key] * g.star_value ** beta)
     const sum = w.reduce((a, b) => a + b, 0)
     out[t.tier] = Object.fromEntries(gifts.map((g, i) => [g.key, Math.max(1, Math.round((w[i] / sum) * 100000))]))
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The wheel without Telegram gifts. Every gift becomes the same number of stars (an Apple is 15 stars, a Frog 10,000), and
+// the three cheapest, the ones that come up most often, are also paid as coins of equal worth, 60% stars and 40% coins.
+// The conversion is the payout guard's own rate: 1 star = 10,000 coins (guard.coin_value_stars 0.0001), and it is also what a
+// gift costs you (about $0.013 a star, and 10,000 coins are $0.0125). So the return of every tier stays exactly what it was.
+// ---------------------------------------------------------------------------------------------------------------------
+export const WHEEL_PAYS_GIFTS = false
+const COINS_PER_STAR = 10000
+function cashOdds(odds, gifts) {
+  const value = Object.fromEntries(gifts.map((g) => [g.key, g.star_value]))
+  const alsoCoins = new Set(['apple', 'cat', 'panda'])
+  const out = {}
+  for (const [tier, row] of Object.entries(odds)) {
+    out[tier] = {}
+    for (const [key, w] of Object.entries(row)) {
+      const v = value[key]
+      if (alsoCoins.has(key)) {
+        const stars = Math.max(1, Math.round(w * 0.6))
+        out[tier][`stars:${v}`] = stars
+        out[tier][`coins:${v * COINS_PER_STAR}`] = Math.max(1, w - stars)
+      } else {
+        out[tier][`stars:${v}`] = w
+      }
+    }
   }
   return out
 }

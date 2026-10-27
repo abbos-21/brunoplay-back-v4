@@ -73,7 +73,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `spin.odds` | json | **required** | Wheel odds {tier:{prize:weight}}. A prize is a gift key (heart), or coins:500, or stars:25. Weights are relative. |
 | `spin.publish_odds` | bool | `false` | Show the relative odds of the gifts to players (false = every gift shown with equal weight) |
 | `spin.tiers` | json | **required** | Spin tiers [{tier,price_stars}] |
-| `spin.winners_min_value` | int | `0` | Smallest gift value shown in the winners feed (0 = every gift) |
+| `spin.winners_min_value` | int | `0` | Smallest prize worth, in stars, shown in the winners feed (0 = every prize) |
 
 ## levels
 

@@ -314,7 +314,7 @@ func Registry() []Def {
 		i(KeyGuardWindowH, "games", "Payout guard window (hours)", 24, 1, 720),
 		b(KeySpinPublishOdds, "games", "Show the relative odds of the gifts to players (false = every gift shown with equal weight)", false),
 		fl(KeyGuardCoinValue, "games", "Payout guard: how many stars one coin is worth when counting coin prizes (0 = coins are not counted)", 0, 0, 1000000),
-		i(KeyWinnersMin, "games", "Smallest gift value shown in the winners feed (0 = every gift)", 0, 0, big),
+		i(KeyWinnersMin, "games", "Smallest prize worth, in stars, shown in the winners feed (0 = every prize)", 0, 0, big),
 
 		obj(KeyRefLevelRewards, "friends", "Coins the inviter gets when a friend reaches a level: {\"2\":200,...}", nil),
 		fl(KeyRefMiningPct, "friends", "Percent of a friend's collected coins paid to the inviter", 0, 0, 100),

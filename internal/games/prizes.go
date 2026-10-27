@@ -307,7 +307,8 @@ func (s *Service) feed(ctx context.Context, tx db.Querier, playerID int64, game 
 		return err
 	}
 	min, _ := s.settings.Int(ctx, settings.KeyWinnersMin)
-	if p.Type != TypeGift || p.Value < min {
+	// gifts, stars and coins are listed once they are worth the minimum in stars (a coin counts for guard.coin_value_stars)
+	if s.starValue(p, s.coinStars(ctx)) < min {
 		return nil
 	}
 	_, err := tx.Exec(ctx, `INSERT INTO winners_feed (player_id, username, game, prize_type, prize_value, gift_key, spent_stars, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
