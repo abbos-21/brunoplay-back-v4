@@ -21,8 +21,12 @@ export VERSION="$(git -C .. rev-parse --short HEAD 2>/dev/null || date -u +%Y%m%
 echo "== building $VERSION"
 docker compose build
 
-echo "== backing up before the migration"
-timeout 180 ./backup.sh --quick || echo "(quick backup failed: continuing, the nightly backup is the real one)"
+if [ -n "${SKIP_BACKUP:-}" ]; then
+  echo "== skipping the backup (SKIP_BACKUP is set: use it for the very first start, when there is no database yet)"
+else
+  echo "== backing up before the migration"
+  timeout 180 ./backup.sh --quick || echo "(quick backup failed: continuing, the nightly backup is the real one)"
+fi
 
 echo "== migrating"
 docker compose run --rm migrate
