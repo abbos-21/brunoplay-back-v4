@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -23,6 +24,7 @@ func (d *Deps) socialRoutes(r chi.Router) {
 		r.Get("/tasks", httpx.Wrap(d.tasksList))
 		r.Get("/ads/bonus", httpx.Wrap(d.bonusStatus))
 		r.Get("/ads/config", httpx.Wrap(d.adsConfig))
+		r.Post("/ads/interstitial/report", httpx.Wrap(d.interstitialReport))
 		r.Get("/friends", httpx.Wrap(d.friends))
 		r.Get("/friends/stats", httpx.Wrap(d.friendsStats))
 		r.Get("/friends/rewards", httpx.Wrap(d.friendsRewards))
@@ -451,5 +453,26 @@ func (d *Deps) sponsoredClaim(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	httpx.JSON(w, 200, res)
+	return nil
+}
+
+// interstitialReport writes one line to the log for every interstitial attempt of the game ("shown", or "failed" with Adsgram's own
+// reason). Nothing is stored: it only lets the owner see why no ad appeared (an unapproved block, no fill, a blocked script).
+func (d *Deps) interstitialReport(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		Result string `json:"result"`
+		Detail string `json:"detail"`
+	}
+	if err := httpx.Decode(r, &in); err != nil {
+		return err
+	}
+	clip := func(s string, n int) string {
+		if len(s) > n {
+			return s[:n]
+		}
+		return s
+	}
+	slog.Info("interstitial", "player", httpx.PlayerFrom(r.Context()).ID, "result", clip(in.Result, 20), "detail", clip(in.Detail, 300))
+	httpx.JSON(w, 200, map[string]bool{"ok": true})
 	return nil
 }

@@ -13,6 +13,7 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/ads/bonus/claim` | player |
 | GET | `/api/ads/config` | player |
 | POST | `/api/ads/failed` | player |
+| POST | `/api/ads/interstitial/report` | player |
 | POST | `/api/ads/task/claim` | player |
 | GET | `/api/app-info` | public |
 | POST | `/api/auth/telegram` | public |
