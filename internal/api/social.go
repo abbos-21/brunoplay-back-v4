@@ -22,6 +22,7 @@ func (d *Deps) socialRoutes(r chi.Router) {
 		r.Get("/daily/combo", httpx.Wrap(d.comboStatus))
 		r.Get("/tasks", httpx.Wrap(d.tasksList))
 		r.Get("/ads/bonus", httpx.Wrap(d.bonusStatus))
+		r.Get("/ads/config", httpx.Wrap(d.adsConfig))
 		r.Get("/friends", httpx.Wrap(d.friends))
 		r.Get("/friends/stats", httpx.Wrap(d.friendsStats))
 		r.Get("/friends/rewards", httpx.Wrap(d.friendsRewards))
@@ -37,6 +38,7 @@ func (d *Deps) socialRoutes(r chi.Router) {
 			r.Post("/tasks/{id}/check", httpx.Wrap(d.taskCheck))
 			r.Post("/tasks/{id}/ad-progress", httpx.Wrap(d.taskAdProgress))
 			r.Post("/ads/bonus/claim", httpx.Wrap(d.bonusClaim))
+			r.Post("/ads/task/claim", httpx.Wrap(d.sponsoredClaim))
 		})
 	})
 }
@@ -430,5 +432,24 @@ func (d *Deps) adminComboPatternDelete(w http.ResponseWriter, r *http.Request) e
 	}
 	_ = admin.Audit(r.Context(), d.Pool, httpx.AdminFrom(r.Context()), "combo.pattern_delete", "combo_pattern", day.Format("2006-01-02"), nil, nil)
 	httpx.JSON(w, 200, map[string]bool{"ok": true})
+	return nil
+}
+
+// adsConfig tells the game how to run the Interstitial ads and whether to show the sponsored task.
+func (d *Deps) adsConfig(w http.ResponseWriter, r *http.Request) error {
+	cfg, err := d.Ads.Config(r.Context(), httpx.PlayerFrom(r.Context()).ID)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, cfg)
+	return nil
+}
+
+func (d *Deps) sponsoredClaim(w http.ResponseWriter, r *http.Request) error {
+	res, err := d.Ads.ClaimSponsored(r.Context(), httpx.PlayerFrom(r.Context()).ID)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, res)
 	return nil
 }

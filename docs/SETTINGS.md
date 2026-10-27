@@ -12,10 +12,18 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.bonus.max_per_day` | int | **required** | Bonus ads per player per day |
 | `ads.combo_extra.max_per_day` | int | **required** | Extra combo attempts (ad) per player per day |
 | `ads.fallback_minutes` | int | `10` | Minutes the no-ad window lasts after a fallback |
+| `ads.interstitial.block_id` | string | `` | Adsgram block id of the Interstitial block (digits) |
+| `ads.interstitial.enabled` | bool | `false` | Interstitial ads (full screen, the player can close them) between games |
+| `ads.interstitial.first_after_seconds` | int | `120` | Interstitial: no ad in the first seconds after the app is opened |
+| `ads.interstitial.interval_seconds` | int | `180` | Interstitial: minimum seconds between two ads for one player |
 | `ads.max_failed_loads` | int | `3` | Failed ad loads in a row after which the action is allowed without an ad |
 | `ads.placements_enabled` | json | `map[BONUS_COINS:true COLLECT:true COMBO_EXTRA:true DOUBLE_COMBO:true DOUBLE_STREAK:true FISHING_START:true RIDE_FREE:true TASK_ADS:true]` | Placement switches |
 | `ads.required` | bool | `true` | Ads are required for fishing start and collect (keep ON in production) |
 | `ads.ride_free.max_per_day` | int | **required** | Free Ride runs (ad) per player per day |
+| `ads.task.block_id` | string | `` | Adsgram block id of the Task block (task-123) |
+| `ads.task.enabled` | bool | `false` | Sponsored task (Adsgram Task block) on the Tasks screen |
+| `ads.task.max_per_day` | int | `3` | Sponsored tasks that pay per player per day |
+| `ads.task.reward_coins` | int | `2000` | Coins for one completed sponsored task |
 | `ads.view_expiry_seconds` | int | `300` | Seconds an ad proof stays valid |
 
 ## boosters

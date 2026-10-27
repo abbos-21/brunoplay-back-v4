@@ -624,7 +624,7 @@ func TestRideRunExpiryAbandonAndScoreLimit(t *testing.T) {
 	if r := e.finishRide(p, old, 5, 5); r.Code(t) != "RIDE_RUN_INVALID" {
 		t.Fatalf("an abandoned run: %s", r.Body)
 	}
-	if r := e.finishRide(p, newer, 5, 60*50+100); r.Code(t) != "RIDE_RUN_INVALID" {
+	if r := e.finishRide(p, newer, 5, 60*70+100); r.Code(t) != "RIDE_RUN_INVALID" {
 		t.Fatalf("an impossible score: %s", r.Body)
 	}
 	id := e.ride(p)

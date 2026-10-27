@@ -196,3 +196,30 @@ func (d *Deps) adsgramWebhook(w http.ResponseWriter, r *http.Request) error {
 	httpx.JSON(w, 200, map[string]bool{"ok": ok})
 	return nil
 }
+
+// adsgramTaskWebhook is the reward callback of the Adsgram TASK block (its own Reward URL, same secret):
+// GET/POST /api/webhooks/adsgram-task?userid=<telegram id>&secret=<shared secret>
+// It only records that the player completed a sponsored task; the game then claims the coins (POST /api/ads/task/claim).
+func (d *Deps) adsgramTaskWebhook(w http.ResponseWriter, r *http.Request) error {
+	q := r.URL.Query()
+	secret := q.Get("secret")
+	if secret == "" {
+		secret = r.Header.Get("X-Adsgram-Secret")
+	}
+	if !d.Ads.SecretOK(secret) {
+		return apperr.Unauthorized
+	}
+	tg, err := strconv.ParseInt(q.Get("userid"), 10, 64)
+	if err != nil {
+		tg, err = strconv.ParseInt(q.Get("userId"), 10, 64)
+		if err != nil {
+			return apperr.BadRequest
+		}
+	}
+	ok, err := d.Ads.SponsoredDone(r.Context(), tg, q.Get("blockid"))
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, map[string]bool{"ok": ok})
+	return nil
+}

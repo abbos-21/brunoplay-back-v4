@@ -171,6 +171,8 @@ func (d *Deps) Routes() chi.Router {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/webhooks/adsgram", httpx.Wrap(d.adsgramWebhook))
 		r.Post("/webhooks/adsgram", httpx.Wrap(d.adsgramWebhook))
+		r.Get("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
+		r.Post("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
 		r.Post("/webhooks/telegram", httpx.Wrap(d.telegramWebhook))
 		d.playerRoutes(r)
 		d.adminRoutes(r)

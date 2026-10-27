@@ -35,6 +35,15 @@ const (
 	KeyAdsComboExtra  = "ads.combo_extra.max_per_day"
 	KeyAdsRideFree    = "ads.ride_free.max_per_day"
 
+	KeyAdsInterEnabled = "ads.interstitial.enabled"
+	KeyAdsInterBlock   = "ads.interstitial.block_id"
+	KeyAdsInterGap     = "ads.interstitial.interval_seconds"
+	KeyAdsInterFirst   = "ads.interstitial.first_after_seconds"
+	KeyAdsTaskEnabled  = "ads.task.enabled"
+	KeyAdsTaskBlock    = "ads.task.block_id"
+	KeyAdsTaskCoins    = "ads.task.reward_coins"
+	KeyAdsTaskPerDay   = "ads.task.max_per_day"
+
 	// fishing, cards, boosters, levels
 	KeyCollectMinPct   = "fishing.collect_min_percent"
 	KeyCardsMining     = "cards.mining.levels"
@@ -260,6 +269,14 @@ func Registry() []Def {
 		i(KeyAdsBonusPerDay, "ads", "Bonus ads per player per day", nil, 0, 1000),
 		i(KeyAdsComboExtra, "ads", "Extra combo attempts (ad) per player per day", nil, 0, 100),
 		i(KeyAdsRideFree, "ads", "Free Ride runs (ad) per player per day", nil, 0, 1000),
+		b(KeyAdsInterEnabled, "ads", "Interstitial ads (full screen, the player can close them) between games", false),
+		s(KeyAdsInterBlock, "ads", "Adsgram block id of the Interstitial block (digits)", ""),
+		i(KeyAdsInterGap, "ads", "Interstitial: minimum seconds between two ads for one player", 180, 30, 86400),
+		i(KeyAdsInterFirst, "ads", "Interstitial: no ad in the first seconds after the app is opened", 120, 0, 3600),
+		b(KeyAdsTaskEnabled, "ads", "Sponsored task (Adsgram Task block) on the Tasks screen", false),
+		s(KeyAdsTaskBlock, "ads", "Adsgram block id of the Task block (task-123)", ""),
+		i(KeyAdsTaskCoins, "ads", "Coins for one completed sponsored task", 2000, 1, big),
+		i(KeyAdsTaskPerDay, "ads", "Sponsored tasks that pay per player per day", 3, 0, 1000),
 
 		i(KeyCollectMinPct, "fishing", "Minimum tank fill (%) needed to collect", 10, 0, 100),
 		cards(KeyCardsMining, "fishing", "Mining-rate card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10", nil),

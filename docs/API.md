@@ -11,7 +11,9 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/ads` | player |
 | GET | `/api/ads/bonus` | player |
 | POST | `/api/ads/bonus/claim` | player |
+| GET | `/api/ads/config` | player |
 | POST | `/api/ads/failed` | player |
+| POST | `/api/ads/task/claim` | player |
 | GET | `/api/app-info` | public |
 | POST | `/api/auth/telegram` | public |
 | GET | `/api/chest` | player |
@@ -62,6 +64,8 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/tournaments/{id}/leaderboard` | player |
 | GET | `/api/webhooks/adsgram` | webhook (secret) |
 | POST | `/api/webhooks/adsgram` | webhook (secret) |
+| GET | `/api/webhooks/adsgram-task` | webhook (secret) |
+| POST | `/api/webhooks/adsgram-task` | webhook (secret) |
 | POST | `/api/webhooks/telegram` | webhook (secret) |
 | GET | `/api/withdrawals` | player |
 | POST | `/api/withdrawals` | player |

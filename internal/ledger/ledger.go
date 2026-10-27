@@ -32,6 +32,7 @@ const (
 	ReasonDailyCombo       = "daily_combo"
 	ReasonBonusAd          = "bonus_ad"
 	ReasonTaskReward       = "task_reward"
+	ReasonSponsoredTask    = "sponsored_task"
 	ReasonReferralLevel    = "referral_level"
 	ReasonReferralMining   = "referral_mining"
 	ReasonFriendBonus      = "friend_join_bonus"
