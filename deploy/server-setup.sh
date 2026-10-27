@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time base setup of a FRESH Ubuntu 22.04 / 24.04 server for BrunoPlay. Run it as root, once:
+# One-time base setup of a FRESH Ubuntu 22.04 / 24.04 or Debian 12 / 13 server for BrunoPlay. Run it as root, once:
 #
 #   apt-get update && apt-get install -y git
 #   git clone https://github.com/abbos-21/brunoplay-back-v4.git /root/brunoplay-back-v4
@@ -14,8 +14,8 @@ USER_NAME="${1:?usage: server-setup.sh NEW_USER_NAME   (the name of the user you
 [ "$(id -u)" = 0 ] || { echo "run this as root"; exit 1; }
 . /etc/os-release
 case "$ID:$VERSION_ID" in
-  ubuntu:22.04|ubuntu:24.04) ;;
-  *) echo "this script is written for Ubuntu 22.04 or 24.04, this is $PRETTY_NAME"; exit 1 ;;
+  ubuntu:22.04|ubuntu:24.04|debian:12|debian:13) ;;
+  *) echo "this script is written for Ubuntu 22.04 / 24.04 or Debian 12 / 13, this is $PRETTY_NAME"; exit 1 ;;
 esac
 export DEBIAN_FRONTEND=noninteractive
 step() { echo; echo "== $*"; }
@@ -25,15 +25,15 @@ apt-get update -y
 apt-get upgrade -y
 
 step "installing the basics"
-apt-get install -y ca-certificates curl gnupg git ufw nginx certbot python3-certbot-nginx openssl util-linux restic fail2ban \
+apt-get install -y ca-certificates curl gnupg git sudo ufw nginx certbot python3-certbot-nginx openssl util-linux restic fail2ban \
   unattended-upgrades cron htop
 
 step "installing Docker (from Docker's own repository)"
 if ! command -v docker >/dev/null 2>&1; then
   install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  curl -fsSL https://download.docker.com/linux/$ID/gpg -o /etc/apt/keyrings/docker.asc
   chmod a+r /etc/apt/keyrings/docker.asc
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" \
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$ID $VERSION_CODENAME stable" \
     > /etc/apt/sources.list.d/docker.list
   apt-get update -y
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
