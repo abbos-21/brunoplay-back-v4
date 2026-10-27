@@ -191,8 +191,8 @@ export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
     // 0.05 TON of coins (kept at 0.05 TON when the TON price moves); a player can take at most 0.5 USD a day and
     // 100 TON in total. Payouts that leave the player up to 0.075 TON are sent automatically.
     'withdrawal.coins_per_ton': coinsPerTon,
-    'withdrawal.fee_ton': 0.02,
-    'withdrawal.min_coins': roundTo(0.05 * coinsPerTon, 1000),
+    'withdrawal.fee_ton': 0.01,
+    'withdrawal.min_coins': 20000, // about 0.02 TON; the fee (0.01 TON) is half of it
     'withdrawal.max_coins': 400000,
     'withdrawal.daily_limit_coins': 400000,
     'withdrawal.total_limit_coins': roundTo(100 * coinsPerTon, 1000000), // 100 TON

@@ -11,7 +11,7 @@ learn each one in the first two weeks and what to change.
 
 1. **Ads are the base income.** Every fishing cycle is two ads (start and collect); every bonus ad, double reward, extra combo try and free Ride run is one more.
 2. **Coins are worth very little on purpose.** 1,000,000 coins = about $1.25. A player earns about 5,000–7,000 coins ($0.006–$0.009) a day for free, which is a third of what their ads earn you.
-3. **A payout is a small, early reward.** A first withdrawal needs level 2 and 0.05 TON of coins (50,000 coins, about $0.06), which a player who stays about a week reaches. There is no account-age rule for now (`withdrawal.min_account_days` 0); set it to 7 or more if fake accounts become a problem. One account can take out at most 400,000 coins ($0.50) a day and, because of the 48-hour wait, about $7 a month; the lifetime limit is 100 TON (about $124). Small payouts are sent by the server by itself.
+3. **A payout is a small, early reward.** A first withdrawal needs level 2 and 20,000 coins (about 0.02 TON, $0.025; with the 0.01 TON fee the player receives about 0.01 TON), which a player who stays about a week reaches. There is no account-age rule for now (`withdrawal.min_account_days` 0); set it to 7 or more if fake accounts become a problem. One account can take out at most 400,000 coins ($0.50) a day and, because of the 48-hour wait, about $7 a month; the lifetime limit is 100 TON (about $124). Small payouts are sent by the server by itself.
 4. **Stars are the second income.** Levels 6–10 of both cards cost stars (about 1,185 stars, roughly $17 of income, to reach the top), plus the two boosters, the spin, the chest and Ride.
 5. **The prize games can never lose more than they take.** Each spin tier gives back about 70–80% on average, and a hard guard stops any tier from paying out more than 85% of what it took in over 72 hours.
 
@@ -23,7 +23,7 @@ The price of TON is the one number that moves. When the seed runs it reads the l
 |---|---|---|
 | `withdrawal.coins_per_ton` | **990,000** | TON price ÷ $0.00000125, rounded to 10,000 |
 | `topup.ton.stars_per_ton` | **71** | TON price ÷ $0.0175 per star |
-| `withdrawal.fee_ton` | **0.02** | well above the network fee of a TON transfer (check yours; it is usually under 0.01) |
+| `withdrawal.fee_ton` | **0.01** | covers the network fee of a TON transfer (about 0.005; check your own payout in the wallet history) with a little left over |
 | `topup.ton.bonus_percent` | **10** | the "+10%" on the TON tab |
 | `topup.telegram.ratio` / bonus | **1** / **0** | 1 Telegram Star = 1 game star |
 
