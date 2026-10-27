@@ -227,7 +227,8 @@ func (m tcMsg) comment() string {
 }
 
 func (t *Toncenter) Transactions(ctx context.Context, address string, limit int) ([]Tx, error) {
-	q := url.Values{"address": {address}, "limit": {strconv.Itoa(limit)}, "archival": {"false"}}
+	// archival: an ordinary node forgets old blocks, so a wallet whose last transaction is a few days old fails with "lt not in db"
+	q := url.Values{"address": {address}, "limit": {strconv.Itoa(limit)}, "archival": {"true"}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, t.base+"/getTransactions?"+q.Encode(), nil)
 	if err != nil {
 		return nil, err
