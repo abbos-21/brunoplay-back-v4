@@ -29,4 +29,4 @@ The change applies within about 5 minutes (the game caches the settings), or at 
    * `ads.task.enabled`: ON
 4. The card appears at the end of the **Main** tab of Tasks. The game pays only after Adsgram has called the Reward URL: the "reward" event in the browser alone gets nothing. A completion that is not claimed (limit reached, app closed) expires after 6 hours.
 
-Checking it: `grep webhooks/adsgram-task /var/log/nginx/access.log` shows Adsgram's calls (`{"ok":true}` is 11 bytes, `{"ok":false}` 12). Ledger reason: `sponsored_task`. In Adsgram's debug/test mode no Reward URL call is sent, so a test task shows but pays nothing: that is expected.
+Checking it: `grep webhooks/adsgram-task /var/log/nginx/access.log` shows Adsgram's calls (12 bytes in the log means accepted, 13 means ignored). Ledger reason: `sponsored_task`. In Adsgram's debug/test mode no Reward URL call is sent, so a test task shows but pays nothing: that is expected.
