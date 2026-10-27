@@ -108,10 +108,18 @@ export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
     { type: 'coins', value: 30000, weight: 90 },
     { type: 'stars', value: 3, weight: 170 },
     { type: 'stars', value: 8, weight: 100 },
-    { type: 'stars', value: 25, weight: 25 },
-    { type: 'gift', gift: 'apple', weight: 70 },
-    { type: 'gift', gift: 'cat', weight: 35 },
-    { type: 'gift', gift: 'panda', weight: 10 },
+    { type: 'stars', value: 25, weight: WHEEL_PAYS_GIFTS ? 25 : 60 },
+    ...(WHEEL_PAYS_GIFTS
+      ? [
+          { type: 'gift', gift: 'apple', weight: 70 },
+          { type: 'gift', gift: 'cat', weight: 35 },
+          { type: 'gift', gift: 'panda', weight: 10 },
+        ]
+      : [
+          // the gifts are paid as the same number of stars (Apple 15, Cat 25, Panda 50), so the return stays 73.8%
+          { type: 'stars', value: 15, weight: 70 },
+          { type: 'stars', value: 50, weight: 10 },
+        ]),
   ]
 
   const streak = [200, 250, 300, 400, 500, 600, 750, 900, 1100, 1500]

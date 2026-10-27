@@ -77,7 +77,7 @@ Coins every level (500 → 30,000), stars only from level 5 (3, 5, 8, 10, 15, 25
 ### Games
 * **Gifts** (value in stars; this is also what selling pays): Apple 15, Cat 25, Panda 50, Watch 100, Ring 250, Cap 1,000, Heart 2,500, Frog 10,000.
 * **Spin tiers**: 30 / 75 / 150 / 400 / 1,000 stars per spin, giving back about 70% / 72% / 75% / 78% / 80%. Every spin wins a gift (the cheapest is worth half the cheapest tier), the higher tiers tilt toward the valuable ones. The odds are computed, not guessed (`economy.mjs`, `tuneSpin`).
-* **Chest**: 20 stars for a round of 3 picks, giving back about 74%. Prizes: coins (3,000 / 10,000 / 30,000), stars (3 / 8 / 25), small gifts (Apple, Cat, Panda).
+* **Chest**: 20 stars for a round of 3 picks, giving back about 74%. Prizes: coins (3,000 / 10,000 / 30,000) and stars (3 / 8 / 15 / 25 / 50). The small gifts (Apple, Cat, Panda) are paid as the same number of stars (15, 25, 50), so the return did not change; `WHEEL_PAYS_GIFTS = true` in `scripts/economy.mjs` brings them back. Write it with `production-seed.mjs --only chest.pool`.
 * **Ride**: 2 stars a run, up to 4,000 coins a day. Three runs a day are free for an ad.
 * **Payout guard**: 85% over 72 hours, with a coin counted as 0.0001 star. With low volume the guard simply holds back the biggest prizes, because a tier cannot pay out what it has not yet taken in. So the Heart and Frog appear only when many people are playing that tier: this is what keeps them from bankrupting you early. They stay on the wheel for show.
 
