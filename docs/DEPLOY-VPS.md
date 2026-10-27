@@ -171,16 +171,7 @@ Open `https://play.<yourdomain>` in a normal browser to check: it should show th
 
 ## 9. Backups (15 min). Do not skip
 
-```bash
-sudo apt -y install restic
-echo 'a-long-random-password' | sudo tee /root/.brunoplay-restic-password && sudo chmod 600 /root/.brunoplay-restic-password
-nano /opt/brunoplay/brunoplay-back-v4/deploy/.env       # RESTIC_REPOSITORY=s3:... (and the bucket keys as AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)
-sudo crontab -e
-#   17 3 * * *  /opt/brunoplay/brunoplay-back-v4/deploy/backup.sh >> /var/log/brunoplay-backup.log 2>&1
-```
-
-Run `./backup.sh` once by hand and then `./restore-drill.sh`: it restores into a throwaway container and checks that the books balance.
-Keep the restic password somewhere other than this server. Repeat the drill monthly. These scripts were written for this stack but could not be run in the place where the project was built (no Docker there), so the drill is how you find out whether they work.
+Follow `docs/BACKUPS.md`: install restic, choose the off-server place, run `./backup.sh` once, run `./restore-drill.sh` and `./restore-drill.sh --offsite` (both must pass), then `./install-backup-cron.sh`.
 
 ## 10. Before you tell anyone (30 min)
 
@@ -239,6 +230,6 @@ Game files are replaced in place, so players get the new version the next time t
 | TON top-up stays pending | `TON_API_KEY` set? `docker compose logs worker`; check the order in Admin → Top-ups |
 | No bot messages | `docker compose logs worker`; players switched them off; quiet hours (20:00–04:00 UTC) |
 | "Ledger mismatch" alert | Do not pay anything out. Admin → Ledger check. This must never happen: keep the logs and the latest backup |
-| Disk filling up | `docker system df`; WAL files under the `wal` volume are trimmed by `backup.sh` |
+| Disk filling up | `docker system df` and `du -sh ~/brunoplay-backups`; the dumps are pruned by `backup.sh` and Docker logs rotate |
 
 Logs: `docker compose logs -f api worker`. Everything is in `docs/OPERATIONS.md`, `docs/SECURITY.md` and `docs/SETTINGS.md`.

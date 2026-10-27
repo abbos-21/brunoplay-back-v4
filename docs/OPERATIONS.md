@@ -52,12 +52,7 @@ payouts needing a human, unpaid TON orders, paid Telegram invoices without an or
 
 ## 4. Backups and recovery
 
-* PostgreSQL archives every WAL segment (`archive_mode=on`), so you can restore to any minute.
-* `deploy/backup.sh` (cron nightly) takes a base backup and sends base + WAL to an **off-server, encrypted restic repository**.
-* **Restore drill** (monthly): `deploy/restore-drill.sh ["2026-10-24 12:30:00+00"]` restores into a throwaway container and checks that the books balance.
-  A backup you never restored is not a backup.
-* Real disaster: new server → install Docker → `deploy.sh` with an empty database stopped → restore the base backup + WAL as the drill does → start.
-* The backup scripts were written for this stack but **not executed in the build environment (no Docker there)**: run the drill once on the real server before relying on them.
+See `docs/BACKUPS.md`. In short: `deploy/backup.sh` dumps the database every hour (cron), checks the dump, keeps 48 hourly and 14 daily dumps, copies each one to an off-server encrypted restic repository, and messages `ALERT_CHAT_ID` when it fails or a disk passes 80%. `deploy/restore-drill.sh` restores the newest dump (or `--offsite` the newest copy) into a throwaway container and checks that every balance equals its ledger: run it monthly. The most you can lose is about an hour. A backup you never restored is not a backup.
 
 ## 5. Load test
 

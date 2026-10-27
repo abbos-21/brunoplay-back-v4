@@ -218,20 +218,8 @@ read -s -p "bot token: " T; echo; curl -s "https://api.telegram.org/bot$T/getWeb
 **Adsgram.** For each ad block set the reward URL to
 `https://brunoplay-api.duckdns.org/api/webhooks/adsgram?userid=[userId]&blockid=<the block id>&secret=<ADSGRAM_WEBHOOK_SECRET from .env>`.
 
-**Backups (do this today).** The simplest safe start is a nightly database dump kept for a week, and copied off the server:
-
-```bash
-mkdir -p ~/backups && cat > ~/backup-brunoplay.sh <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-cd /opt/brunoplay/brunoplay-back-v4/deploy
-docker compose exec -T postgres pg_dump -U brunoplay brunoplay | gzip > ~/backups/brunoplay-$(date -u +%Y%m%d-%H%M).sql.gz
-find ~/backups -name 'brunoplay-*.sql.gz' -mtime +7 -delete
-EOF
-chmod +x ~/backup-brunoplay.sh && ~/backup-brunoplay.sh && ls -lh ~/backups
-(crontab -l 2>/dev/null; echo '17 3 * * * /home/'"$USER"'/backup-brunoplay.sh') | crontab -
-```
-A backup on the same server is not a backup if the server dies: regularly copy `~/backups` to your PC (`scp`) or set up the full point-in-time backup with a remote repository from `docs/OPERATIONS.md` section 4 before real money flows.
+**Backups (do this today).** Follow `docs/BACKUPS.md`: hourly database dumps, a copy off the server, and a restore drill that proves they work.
+The first start (`SKIP_BACKUP=1 ./deploy.sh`) has no database to back up yet; every start after that backs up first.
 
 ## 10. Automatic payouts: leave them off for now
 
