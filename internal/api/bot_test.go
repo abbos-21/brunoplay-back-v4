@@ -335,6 +335,25 @@ func TestBoosterMessagesFollowTheBooster(t *testing.T) {
 	}
 }
 
+// With Autocollect the tank empties itself: the "tank is full, collect" message is wrong even in the seconds before the job runs.
+func TestNoTankFullMessageWhenAutocollectIsOn(t *testing.T) {
+	e := newEnv(t)
+	e.gameConfig()
+	fake := e.botEnv()
+	p := e.login(608, "en", "")
+	e.reach(p)
+	e.give(p, ledger.Star, 1000)
+	e.do("POST", "/api/fishing/start", p.Token, map[string]any{"adViewId": e.watchAd(p, "FISHING_START")})
+	e.do("POST", "/api/shop/boosters/AUTO_MINING/buy", p.Token, nil)
+	e.now = e.now.Add(201 * time.Second) // the tank is full and the autocollect job has not run yet
+	e.sendDue()
+	for _, m := range fake.MessagesTo(608) {
+		if strings.Contains(m.Text, "tank is full") || strings.Contains(m.Text, "coins are waiting") {
+			t.Fatalf("an Autocollect player must not be told to collect: %q", m.Text)
+		}
+	}
+}
+
 func TestAutocollectAndMoneyMessages(t *testing.T) {
 	e := newEnv(t)
 	e.gameConfig()

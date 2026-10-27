@@ -197,7 +197,10 @@ func (d *Deps) registerValidators() {
 			return ok, err
 		}
 	}
-	v["tank_full"] = existsNow(`SELECT EXISTS(SELECT 1 FROM fishing_sessions WHERE player_id=$1 AND status='RUNNING' AND full_at <= $2::timestamptz + interval '2 seconds')`)
+	// With Autocollect the server empties the tank by itself, a few seconds after it fills. The message is due at the very moment
+	// the tank fills, when the job has not run yet, so without the booster check every Autocollect player was told to "collect".
+	v["tank_full"] = existsNow(`SELECT EXISTS(SELECT 1 FROM fishing_sessions WHERE player_id=$1 AND status='RUNNING' AND full_at <= $2::timestamptz + interval '2 seconds')
+		AND NOT EXISTS(SELECT 1 FROM player_boosters b WHERE b.player_id=$1 AND b.type='` + fishing.BoostAuto + `' AND b.starts_at <= $2::timestamptz AND b.expires_at > $2::timestamptz)`)
 	v["collect_reminder"] = v["tank_full"]
 	v["fishing_idle"] = exists(`SELECT NOT EXISTS(SELECT 1 FROM fishing_sessions WHERE player_id=$1 AND status='RUNNING')`)
 	v["chest_round_open"] = exists(`SELECT EXISTS(SELECT 1 FROM chest_rounds WHERE player_id=$1 AND status='OPEN')`)
