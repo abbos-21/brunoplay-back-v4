@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -36,7 +38,54 @@ func (s *Service) tiers(ctx context.Context) ([]tierCfg, error) {
 	return t, nil
 }
 
-// tierPool builds the prizes of one tier from the odds table and the gifts.
+// prizeFromKey reads one entry of the odds table: a gift key ("heart"), or an amount of coins ("coins:500") or stars ("stars:25").
+func prizeFromKey(key string, gifts map[string]Gift) (Prize, bool) {
+	if kind, amount, ok := strings.Cut(key, ":"); ok {
+		n, err := strconv.ParseInt(amount, 10, 64)
+		if err != nil || n <= 0 {
+			return Prize{}, false
+		}
+		switch kind {
+		case "coins":
+			return Prize{Type: TypeCoins, Value: n}, true
+		case "stars":
+			return Prize{Type: TypeStars, Value: n}, true
+		}
+		return Prize{}, false
+	}
+	g, ok := gifts[key]
+	if !ok {
+		return Prize{}, false
+	}
+	return Prize{Type: TypeGift, Gift: key, Value: g.StarValue}, true
+}
+
+// prizeSlug names a prize in the draw log: the gift key, or "coins:500" / "stars:25".
+func prizeSlug(p Prize) string {
+	if p.Type == TypeGift {
+		return p.Gift
+	}
+	return fmt.Sprintf("%s:%d", p.Type, p.Value)
+}
+
+// prizeLabel is the text shown for a prize in the player's language.
+func prizeLabel(p Prize, gifts map[string]Gift, lang apperr.Lang) string {
+	switch p.Type {
+	case TypeCoins:
+		if lang == apperr.RU {
+			return "Монеты"
+		}
+		return "Coins"
+	case TypeStars:
+		if lang == apperr.RU {
+			return "Звёзды"
+		}
+		return "Stars"
+	}
+	return gifts[p.Gift].Name(lang)
+}
+
+// tierPool builds the prizes of one tier from the odds table: gifts, coins and stars.
 func (s *Service) tierPool(ctx context.Context, tier string) ([]Prize, error) {
 	odds, err := settings.Get[map[string]map[string]float64](ctx, s.settings, settings.KeySpinOdds)
 	if err != nil {
@@ -57,11 +106,12 @@ func (s *Service) tierPool(ctx context.Context, tier string) ([]Prize, error) {
 	sort.Strings(keys)
 	var out []Prize
 	for _, k := range keys {
-		g, ok := gifts[k]
+		p, ok := prizeFromKey(k, gifts)
 		if !ok || row[k] <= 0 {
 			continue
 		}
-		out = append(out, Prize{Type: TypeGift, Gift: k, Value: g.StarValue, Weight: row[k]})
+		p.Weight = row[k]
+		out = append(out, p)
 	}
 	if len(out) == 0 {
 		return nil, apperr.ConfigMissing.With("key", settings.KeySpinOdds)
@@ -114,7 +164,7 @@ func (s *Service) Tiers(ctx context.Context, lang apperr.Lang) ([]TierView, erro
 			if publish {
 				w = p.Weight
 			}
-			v.Prizes = append(v.Prizes, PrizeView{Type: TypeGift, Value: p.Value, Weight: w, Label: gifts[p.Gift].Name(lang), Gift: p.Gift})
+			v.Prizes = append(v.Prizes, PrizeView{Type: p.Type, Value: p.Value, Weight: w, Label: prizeLabel(p, gifts, lang), Gift: p.Gift})
 		}
 		out = append(out, v)
 	}
@@ -185,6 +235,13 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 	for _, g := range allGifts {
 		guardPool = append(guardPool, Prize{Type: TypeGift, Gift: g.Key, Value: g.StarValue})
 	}
+	// the coin and star prizes of this tier are valid step-down choices too
+	for _, p := range pool {
+		if p.Type != TypeGift {
+			guardPool = append(guardPool, Prize{Type: p.Type, Value: p.Value})
+		}
+	}
+	coinStars := s.coinStars(ctx)
 	total := cfg.Price * int64(count)
 	batch := batchID()
 	var res *SpinResult
@@ -214,24 +271,54 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 			if err != nil {
 				return err
 			}
-			if err := s.recordPaid(ctx, tx, GameSpin, tier, s.starValue(prize, 0)); err != nil {
+			worth := s.starValue(prize, coinStars)
+			if err := s.recordPaid(ctx, tx, GameSpin, tier, worth); err != nil {
 				return err
 			}
-			gid, err := s.grant(ctx, tx, playerID, prize, "spin", batch)
+			gid, err := s.payPrize(ctx, tx, playerID, prize, batch, i)
 			if err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO spin_draws (player_id, tier, batch, gift_key, star_value, price, drawn_key, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-				playerID, tier, batch, prize.Gift, prize.Value, cfg.Price, drawn.Gift, s.now()); err != nil {
+				playerID, tier, batch, prizeSlug(prize), worth, cfg.Price, prizeSlug(drawn), s.now()); err != nil {
 				return err
 			}
 			if err := s.feed(ctx, tx, playerID, GameSpin, prize, cfg.Price); err != nil {
 				return err
 			}
-			res.Results = append(res.Results, SpinPrize{Type: TypeGift, Value: prize.Value, Label: gifts[prize.Gift].Name(lang), Gift: prize.Gift, GiftID: gid, StarValue: prize.Value})
+			switch prize.Type {
+			case TypeCoins:
+				res.TotalCoinsWon += prize.Value
+			case TypeStars:
+				res.TotalStarsWon += prize.Value
+			}
+			res.Results = append(res.Results, SpinPrize{Type: prize.Type, Value: prize.Value, Label: prizeLabel(prize, gifts, lang), Gift: prize.Gift, GiftID: gid, StarValue: worth})
 		}
 		_, res.Stars, err = ledger.Balances(ctx, tx, playerID)
 		return err
 	})
 	return res, err
+}
+
+// payPrize gives one wheel prize: a gift goes to the player's collection (it returns the gift's id), coins and stars straight
+// to the balance. Each draw of a purchase has its own idempotency key, so a repeated request can never pay it twice.
+func (s *Service) payPrize(ctx context.Context, tx pgx.Tx, playerID int64, p Prize, batch string, idx int) (int64, error) {
+	key := fmt.Sprintf("spin:%s:%d", batch, idx)
+	switch p.Type {
+	case TypeCoins:
+		_, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: playerID, Currency: ledger.Coin, Amount: p.Value, Reason: ledger.ReasonSpinPrize,
+			RefType: "spin", RefID: batch, IdemKey: key, Earned: true})
+		if err != nil && err != ledger.ErrDuplicate {
+			return 0, err
+		}
+		return 0, nil
+	case TypeStars:
+		_, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: playerID, Currency: ledger.Star, Amount: p.Value, Reason: ledger.ReasonSpinPrize,
+			RefType: "spin", RefID: batch, IdemKey: key})
+		if err != nil && err != ledger.ErrDuplicate {
+			return 0, err
+		}
+		return 0, nil
+	}
+	return s.grant(ctx, tx, playerID, p, "spin", batch)
 }

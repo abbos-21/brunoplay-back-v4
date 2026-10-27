@@ -3,6 +3,9 @@ package settings
 import (
 	"encoding/json"
 	"errors"
+	"math"
+	"strconv"
+	"strings"
 )
 
 // Setting keys. A key with Default == nil is a value the owner must supply (ToR section 11).
@@ -124,6 +127,39 @@ func jsonObject(raw json.RawMessage) error {
 	var a map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &a); err != nil {
 		return errors.New("must be an object")
+	}
+	return nil
+}
+
+// spinOddsCheck validates the wheel odds: {tier:{prize:weight}}. A prize is a gift key ("heart"), or an amount of coins
+// ("coins:500") or of stars ("stars:25"). The weights are relative: only their proportions matter.
+func spinOddsCheck(raw json.RawMessage) error {
+	var odds map[string]map[string]float64
+	if err := json.Unmarshal(raw, &odds); err != nil {
+		return errors.New(`must look like {"TIER_1": {"apple": 40, "coins:500": 30, "stars:5": 10}}`)
+	}
+	for tier, row := range odds {
+		positive := false
+		for key, w := range row {
+			if math.IsNaN(w) || math.IsInf(w, 0) || w < 0 {
+				return errors.New("tier " + tier + ": the weight of " + key + " must be a number from 0 up")
+			}
+			if w > 0 {
+				positive = true
+			}
+			if strings.TrimSpace(key) == "" {
+				return errors.New("tier " + tier + ": a prize needs a name")
+			}
+			if kind, amount, ok := strings.Cut(key, ":"); ok {
+				n, err := strconv.ParseInt(amount, 10, 64)
+				if (kind != "coins" && kind != "stars") || err != nil || n <= 0 || n > 1_000_000_000 {
+					return errors.New("tier " + tier + `: "` + key + `" must be coins:AMOUNT or stars:AMOUNT with a whole number above 0, or a gift key`)
+				}
+			}
+		}
+		if !positive {
+			return errors.New("tier " + tier + " needs at least one prize with a weight above 0")
+		}
 	}
 	return nil
 }
@@ -261,7 +297,7 @@ func Registry() []Def {
 		s(KeyWdNoticeRU, "withdrawal", "Notice text on the history screen (Russian)", ""),
 
 		arr(KeySpinTiers, "games", "Spin tiers [{tier,price_stars}]", nil),
-		obj(KeySpinOdds, "games", "Spin odds: {tier:{giftKey:weight}}", nil),
+		{Key: KeySpinOdds, Kind: KJSON, Group: "games", Desc: "Wheel odds {tier:{prize:weight}}. A prize is a gift key (heart), or coins:500, or stars:25. Weights are relative.", Check: spinOddsCheck},
 		arr(KeyGifts, "games", "Gifts [{key,name_en,name_ru,star_value}]", nil),
 		i(KeyChestCost, "games", "Chest round price (stars)", nil, 0, big),
 		i(KeyChestPicks, "games", "Chests per round", 3, 1, 12),

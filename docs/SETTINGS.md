@@ -70,7 +70,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ride.min_duration_seconds` | int | `3` | Shortest believable Ride run (seconds); the game itself cannot end a run before about 4.5 s, so keep this below that |
 | `ride.run_cost_stars` | int | **required** | Ride run price (stars) |
 | `ride.spawn_delay_seconds` | int | `3` | Seconds before obstacles and coins appear |
-| `spin.odds` | json | **required** | Spin odds: {tier:{giftKey:weight}} |
+| `spin.odds` | json | **required** | Wheel odds {tier:{prize:weight}}. A prize is a gift key (heart), or coins:500, or stars:25. Weights are relative. |
 | `spin.publish_odds` | bool | `false` | Show the relative odds of the gifts to players (false = every gift shown with equal weight) |
 | `spin.tiers` | json | **required** | Spin tiers [{tier,price_stars}] |
 | `spin.winners_min_value` | int | `0` | Smallest gift value shown in the winners feed (0 = every gift) |

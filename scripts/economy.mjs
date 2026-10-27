@@ -261,13 +261,24 @@ function tuneSpin(gifts, tiers) {
   return out
 }
 
+/** What one prize of the odds table is worth in stars: a gift key, or "coins:500" / "stars:25" (a coin counts for guard.coin_value_stars). */
+export function prizeWorth(settings, key) {
+  const [kind, amount] = key.split(':')
+  if (amount !== undefined) {
+    const n = Number(amount)
+    if (kind === 'stars') return n
+    if (kind === 'coins') return n * (settings['guard.coin_value_stars'] ?? 0)
+    return 0
+  }
+  return settings.gifts.find((g) => g.key === key)?.star_value ?? 0
+}
+
 /** The expected return of one spin / chest pick (in stars), computed from the settings that will be written. */
 export function spinRtp(settings, tier) {
   const price = settings['spin.tiers'].find((t) => t.tier === tier).price_stars
   const odds = settings['spin.odds'][tier]
-  const value = Object.fromEntries(settings.gifts.map((g) => [g.key, g.star_value]))
   const sum = Object.values(odds).reduce((a, b) => a + b, 0)
-  const ev = Object.entries(odds).reduce((a, [k, w]) => a + (w / sum) * value[k], 0)
+  const ev = Object.entries(odds).reduce((a, [k, w]) => a + (w / sum) * prizeWorth(settings, k), 0)
   return { price, ev, rtp: ev / price, jackpotChance: ((odds.frog ?? 0) + (odds.heart ?? 0)) / sum }
 }
 

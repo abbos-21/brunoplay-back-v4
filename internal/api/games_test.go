@@ -51,6 +51,83 @@ func (e *env) ledgerSum(p player, cur string) int64 {
 	return s
 }
 
+// The wheel can pay coins and stars next to gifts: "coins:500" and "stars:25" in the odds table.
+func TestSpinCanPayCoinsAndStars(t *testing.T) {
+	e := newEnv(t)
+	e.gamesConfig()
+	e.setSetting(settings.KeySpinOdds, map[string]any{
+		"TIER_1": map[string]float64{"coins:500": 50, "stars:25": 50},
+		"TIER_2": map[string]float64{"small": 1},
+	})
+	p := e.login(520, "en", "")
+	e.give(p, ledger.Star, 10000)
+
+	// the player's tier list shows the coin and star prizes
+	tiers := e.do("GET", "/api/spin/tiers", p.Token, nil).JSON(t)["tiers"].([]any)
+	seen := map[string]bool{}
+	for _, pr := range tiers[0].(map[string]any)["prizes"].([]any) {
+		seen[pr.(map[string]any)["type"].(string)] = true
+	}
+	if !seen["coins"] || !seen["stars"] || seen["gift"] {
+		t.Fatalf("tier 1 shows coins and stars only: %v", tiers[0])
+	}
+
+	starsBefore, coinsBefore := e.stars(p), e.coins(p)
+	r := e.spin(p, "TIER_1", 10)
+	if r.Status != 200 {
+		t.Fatalf("%d %s", r.Status, r.Body)
+	}
+	res := r.JSON(t)
+	var coinsWon, starsWon float64
+	for _, x := range res["results"].([]any) {
+		pr := x.(map[string]any)
+		switch pr["type"] {
+		case "coins":
+			if pr["value"].(float64) != 500 || pr["gift"] != nil {
+				t.Fatalf("coin prize: %v", pr)
+			}
+			coinsWon += 500
+		case "stars":
+			if pr["value"].(float64) != 25 {
+				t.Fatalf("star prize: %v", pr)
+			}
+			starsWon += 25
+		default:
+			t.Fatalf("only coins and stars are in this tier: %v", pr)
+		}
+	}
+	if res["totalCoinsWon"].(float64) != coinsWon || res["totalStarsWon"].(float64) != starsWon {
+		t.Fatalf("totals %v / %v against %v / %v", res["totalCoinsWon"], res["totalStarsWon"], coinsWon, starsWon)
+	}
+	if got := e.stars(p); got != starsBefore-1000+int64(starsWon) {
+		t.Fatalf("stars: paid 1,000, won %v: %d from %d", starsWon, got, starsBefore)
+	}
+	if got := e.coins(p); got != coinsBefore+int64(coinsWon) {
+		t.Fatalf("coins: won %v: %d from %d", coinsWon, got, coinsBefore)
+	}
+	if e.countRows("player_gifts") != 0 || e.countRows("spin_draws") != 10 {
+		t.Fatalf("no gifts, ten logged draws: gifts=%d draws=%d", e.countRows("player_gifts"), e.countRows("spin_draws"))
+	}
+	if e.ledgerSum(p, "STAR") != e.stars(p) {
+		t.Fatalf("ledger %d vs balance %d", e.ledgerSum(p, "STAR"), e.stars(p))
+	}
+
+	// the settings form refuses a malformed prize
+	for _, bad := range []map[string]any{
+		{"TIER_1": map[string]float64{"coins:abc": 1}},
+		{"TIER_1": map[string]float64{"gems:5": 1}},
+		{"TIER_1": map[string]float64{"coins:0": 1}},
+		{"TIER_1": map[string]float64{"coins:500": 0}},
+	} {
+		if _, err := e.d.Settings.Validate(settings.KeySpinOdds, bad); err == nil {
+			t.Errorf("must be refused: %v", bad)
+		}
+	}
+	if _, err := e.d.Settings.Validate(settings.KeySpinOdds, map[string]any{"TIER_1": map[string]float64{"apple": 3, "coins:500": 2, "stars:5": 1}}); err != nil {
+		t.Errorf("a valid mix must pass: %v", err)
+	}
+}
+
 func TestSpinChargesDrawsAndStoresGifts(t *testing.T) {
 	e := newEnv(t)
 	p := e.login(500, "ru", "")
