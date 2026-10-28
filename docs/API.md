@@ -118,11 +118,13 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | PUT | `/api/admin/notifications/templates/{type}/{lang}` | admin |
 | GET | `/api/admin/players` | admin |
 | GET | `/api/admin/players/{id}` | admin |
+| POST | `/api/admin/players/{id}/adjust` | admin |
 | POST | `/api/admin/players/{id}/block` | admin |
 | POST | `/api/admin/players/{id}/delete` | admin |
 | PATCH | `/api/admin/players/{id}/flags` | admin |
 | PUT | `/api/admin/players/{id}/invite-bonus` | admin |
 | GET | `/api/admin/players/{id}/ledger` | admin |
+| POST | `/api/admin/players/{id}/reset` | admin |
 | POST | `/api/admin/players/{id}/risk/clear` | admin |
 | POST | `/api/admin/players/{id}/unblock` | admin |
 | GET | `/api/admin/risk` | admin |

@@ -71,6 +71,15 @@ type View struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 	Required  bool      `json:"required"`
 	Fallback  bool      `json:"fallback,omitempty"`
+	// Skip: this player has ads switched off (admin panel). The proof is already completed: the app must not show an ad, only use it.
+	Skip bool `json:"skip,omitempty"`
+}
+
+// PlayerAdsOff reports whether the admin switched the ads off for this player.
+func (s *Service) PlayerAdsOff(ctx context.Context, q db.Querier, playerID int64) bool {
+	var off bool
+	err := q.QueryRow(ctx, `SELECT ads_disabled FROM players WHERE id=$1`, playerID).Scan(&off)
+	return err == nil && off
 }
 
 func newID() string {
@@ -108,6 +117,21 @@ func (s *Service) Request(ctx context.Context, playerID int64, placement string)
 	}
 	if !s.enabled(ctx, placement) {
 		return nil, apperr.AdDisabled
+	}
+	if s.PlayerAdsOff(ctx, s.pool, playerID) {
+		// no ad for this player: hand over a proof that is already completed, so everything after it (limits, rewards, idempotency) works as usual
+		ttl, err := s.settings.Int(ctx, settings.KeyAdsViewExpiry)
+		if err != nil {
+			return nil, err
+		}
+		now := s.now()
+		v := &View{ID: newID(), Placement: placement, ExpiresAt: now.Add(time.Duration(ttl) * time.Second), Required: true, Skip: true}
+		_, err = s.pool.Exec(ctx, `INSERT INTO ad_views (id, player_id, placement, status, block_id, created_at, completed_at, expires_at)
+			VALUES ($1,$2,$3,'COMPLETED','',$4,$4,$5)`, v.ID, playerID, placement, now, v.ExpiresAt)
+		if err != nil {
+			return nil, err
+		}
+		return v, nil
 	}
 	required := s.Required(ctx)
 	block, err := s.blockID(ctx, placement)
@@ -241,7 +265,7 @@ func (s *Service) Consume(ctx context.Context, tx db.Querier, playerID int64, ad
 // Gate is Consume plus the "ads not required" switch: with ads off and no proof given the action goes ahead.
 func (s *Service) Gate(ctx context.Context, tx db.Querier, playerID int64, adID, placement, usedFor string) error {
 	if adID == "" {
-		if !s.Required(ctx) {
+		if !s.Required(ctx) || s.PlayerAdsOff(ctx, tx, playerID) {
 			return nil
 		}
 		return apperr.AdNotCompleted

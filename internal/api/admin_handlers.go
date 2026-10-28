@@ -238,48 +238,52 @@ func (d *Deps) adminAudit(w http.ResponseWriter, r *http.Request) error {
 // ---- players (admin view)
 
 type adminPlayerView struct {
-	ID               int64     `json:"id"`
-	TelegramID       string    `json:"telegramId"`
-	Username         string    `json:"username"`
-	FirstName        string    `json:"firstName"`
-	LastName         string    `json:"lastName"`
-	Language         string    `json:"language"`
-	IsPremium        bool      `json:"isPremium"`
-	Coins            int64     `json:"coins"`
-	Stars            int64     `json:"stars"`
-	TotalCoinsEarned int64     `json:"totalCoinsEarned"`
-	Level            int       `json:"level"`
-	MiningLevel      int       `json:"miningLevel"`
-	CapacityLevel    int       `json:"capacityLevel"`
-	IsBlocked        bool      `json:"isBlocked"`
-	BlockReason      string    `json:"blockReason"`
-	HoldWithdrawals  bool      `json:"holdWithdrawals"`
-	HoldRewards      bool      `json:"holdRewards"`
-	RiskScore        int       `json:"riskScore"`
-	Flags            any       `json:"flags"`
-	AdminNote        string    `json:"adminNote"`
-	ReferredBy       *int64    `json:"referredBy"`
-	ReferralCounted  bool      `json:"referralCounted"`
-	InviteBonusCoins *int64    `json:"inviteBonusCoins"`
-	FriendBonusCoins int64     `json:"friendBonusCoins"`
-	Country          string    `json:"country"`
-	LastIP           string    `json:"lastIp"`
-	BotStarted       bool      `json:"botStarted"`
-	BotBlocked       bool      `json:"botBlocked"`
-	CreatedAt        time.Time `json:"createdAt"`
-	LastSeenAt       time.Time `json:"lastSeenAt"`
+	ID               int64      `json:"id"`
+	TelegramID       string     `json:"telegramId"`
+	Username         string     `json:"username"`
+	FirstName        string     `json:"firstName"`
+	LastName         string     `json:"lastName"`
+	Language         string     `json:"language"`
+	IsPremium        bool       `json:"isPremium"`
+	Coins            int64      `json:"coins"`
+	Stars            int64      `json:"stars"`
+	TotalCoinsEarned int64      `json:"totalCoinsEarned"`
+	Level            int        `json:"level"`
+	MiningLevel      int        `json:"miningLevel"`
+	CapacityLevel    int        `json:"capacityLevel"`
+	IsBlocked        bool       `json:"isBlocked"`
+	BlockReason      string     `json:"blockReason"`
+	HoldWithdrawals  bool       `json:"holdWithdrawals"`
+	HoldRewards      bool       `json:"holdRewards"`
+	RiskScore        int        `json:"riskScore"`
+	Flags            any        `json:"flags"`
+	AdminNote        string     `json:"adminNote"`
+	ReferredBy       *int64     `json:"referredBy"`
+	ReferralCounted  bool       `json:"referralCounted"`
+	InviteBonusCoins *int64     `json:"inviteBonusCoins"`
+	FriendBonusCoins int64      `json:"friendBonusCoins"`
+	Country          string     `json:"country"`
+	LastIP           string     `json:"lastIp"`
+	BotStarted       bool       `json:"botStarted"`
+	BotBlocked       bool       `json:"botBlocked"`
+	AdsDisabled      bool       `json:"adsDisabled"`
+	Archived         bool       `json:"archived"` // erased or reset: the record is kept for the money trail only
+	ResetAt          *time.Time `json:"resetAt"`
+	ResetTelegramID  *int64     `json:"resetTelegramId"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	LastSeenAt       time.Time  `json:"lastSeenAt"`
 }
 
 const adminPlayerCols = `id, telegram_id::text, username, first_name, last_name, language, is_premium, coins, stars, total_coins_earned,
 	level, mining_level, capacity_level, is_blocked, block_reason, hold_withdrawals, hold_rewards, risk_score, flags, admin_note,
-	referred_by, referral_counted, invite_bonus_coins, friend_bonus_coins, country, last_ip, bot_started, bot_blocked, created_at, last_seen_at`
+	referred_by, referral_counted, invite_bonus_coins, friend_bonus_coins, country, last_ip, bot_started, bot_blocked, ads_disabled, deleted_at IS NOT NULL, reset_at, reset_telegram_id, created_at, last_seen_at`
 
 func scanAdminPlayer(row pgx.Row) (*adminPlayerView, error) {
 	var v adminPlayerView
 	err := row.Scan(&v.ID, &v.TelegramID, &v.Username, &v.FirstName, &v.LastName, &v.Language, &v.IsPremium, &v.Coins, &v.Stars,
 		&v.TotalCoinsEarned, &v.Level, &v.MiningLevel, &v.CapacityLevel, &v.IsBlocked, &v.BlockReason, &v.HoldWithdrawals,
 		&v.HoldRewards, &v.RiskScore, &v.Flags, &v.AdminNote, &v.ReferredBy, &v.ReferralCounted, &v.InviteBonusCoins,
-		&v.FriendBonusCoins, &v.Country, &v.LastIP, &v.BotStarted, &v.BotBlocked, &v.CreatedAt, &v.LastSeenAt)
+		&v.FriendBonusCoins, &v.Country, &v.LastIP, &v.BotStarted, &v.BotBlocked, &v.AdsDisabled, &v.Archived, &v.ResetAt, &v.ResetTelegramID, &v.CreatedAt, &v.LastSeenAt)
 	if err != nil {
 		if db.IsNoRows(err) {
 			return nil, apperr.NotFound
@@ -430,6 +434,7 @@ type flagsReq struct {
 	HoldWithdrawals *bool   `json:"holdWithdrawals"`
 	HoldRewards     *bool   `json:"holdRewards"`
 	Note            *string `json:"note" validate:"omitempty,max=1000"`
+	AdsDisabled     *bool   `json:"adsDisabled"`
 }
 
 func (d *Deps) adminFlags(w http.ResponseWriter, r *http.Request) error {
@@ -446,7 +451,15 @@ func (d *Deps) adminFlags(w http.ResponseWriter, r *http.Request) error {
 	if (in.HoldWithdrawals != nil || in.HoldRewards != nil) && !admin.Can(who.Role, "players.block") {
 		return apperr.Forbidden
 	}
+	if in.AdsDisabled != nil && !admin.Can(who.Role, "players.manage") {
+		return apperr.Forbidden
+	}
 	err = db.WithTx(r.Context(), d.Pool, func(tx pgx.Tx) error {
+		if in.AdsDisabled != nil {
+			if _, err := tx.Exec(r.Context(), `UPDATE players SET ads_disabled=$2 WHERE id=$1 AND deleted_at IS NULL`, id, *in.AdsDisabled); err != nil {
+				return err
+			}
+		}
 		if in.HoldWithdrawals != nil {
 			if _, err := tx.Exec(r.Context(), `UPDATE players SET hold_withdrawals=$2 WHERE id=$1`, id, *in.HoldWithdrawals); err != nil {
 				return err

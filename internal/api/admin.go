@@ -84,6 +84,8 @@ func (d *Deps) adminRoutes(r chi.Router) {
 		r.With(d.adminAuth("players.read")).Get("/players", httpx.Wrap(d.adminPlayers))
 		r.With(d.adminAuth("players.read")).Get("/players/{id}", httpx.Wrap(d.adminPlayer))
 		r.With(d.adminAuth("ledger.read")).Get("/players/{id}/ledger", httpx.Wrap(d.adminPlayerLedger))
+		r.With(d.adminAuth("players.manage")).Post("/players/{id}/adjust", httpx.Wrap(d.adminAdjust))
+		r.With(d.adminAuth("players.manage")).Post("/players/{id}/reset", httpx.Wrap(d.adminReset))
 		r.With(d.adminAuth("players.block")).Post("/players/{id}/block", httpx.Wrap(d.adminBlock))
 		r.With(d.adminAuth("players.block")).Post("/players/{id}/unblock", httpx.Wrap(d.adminUnblock))
 		r.With(d.adminAuth("players.note")).Patch("/players/{id}/flags", httpx.Wrap(d.adminFlags))

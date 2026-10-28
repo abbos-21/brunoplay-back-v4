@@ -154,6 +154,7 @@ var (
 	ChestNoRound   = def("CHEST_NO_ROUND", http.StatusConflict, "There is no active chest round", "Нет активного раунда сундуков")
 	RideRunInvalid = def("RIDE_RUN_INVALID", http.StatusConflict, "This run cannot be saved", "Этот заезд нельзя сохранить")
 	GiftNotOwned   = def("GIFT_NOT_AVAILABLE", http.StatusConflict, "This gift is not available", "Этот подарок недоступен")
+	AdminRefused   = def("ADMIN_ACTION_REFUSED", http.StatusConflict, "{why}", "{why}")            // an admin action that cannot be done now; the text says why
 	GiftCatalog    = def("GIFT_CATALOG_INVALID", http.StatusUnprocessableEntity, "{why}", "{why}") // an admin mistake; the text says what to fix
 	SpinInvalid    = def("SPIN_INVALID", http.StatusUnprocessableEntity, "Choose a valid spin", "Выберите допустимое вращение")
 

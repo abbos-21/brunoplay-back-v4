@@ -189,7 +189,7 @@ func (s *Service) State(ctx context.Context, q db.Querier, p *players.Player) (*
 	if err != nil {
 		return nil, err
 	}
-	st := &State{ServerTime: now, MiningRate: micro(rate), TankCapacity: micro(capacity), EffectiveMiningRate: micro(rate), AdsRequired: s.ads.Required(ctx)}
+	st := &State{ServerTime: now, MiningRate: micro(rate), TankCapacity: micro(capacity), EffectiveMiningRate: micro(rate), AdsRequired: s.ads.Required(ctx) && !s.ads.PlayerAdsOff(ctx, q, p.ID)}
 	if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM player_boosters WHERE player_id=$1 AND type=$2 AND starts_at <= $3 AND expires_at > $3)`,
 		p.ID, BoostAuto, now).Scan(&st.AutoCollect); err != nil {
 		return nil, err

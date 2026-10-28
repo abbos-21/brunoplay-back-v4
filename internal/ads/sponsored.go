@@ -57,6 +57,9 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsInterBlock, ""))
 	c.Interstitial.Enabled = s.settings.BoolOr(ctx, settings.KeyAdsInterEnabled, false) && block != ""
 	c.Interstitial.BlockID = block
+	if c.Interstitial.Enabled && s.PlayerAdsOff(ctx, s.pool, playerID) {
+		c.Interstitial.Enabled = false
+	}
 	c.Interstitial.IntervalSeconds, _ = s.settings.Int(ctx, settings.KeyAdsInterGap)
 	c.Interstitial.FirstAfterSeconds, _ = s.settings.Int(ctx, settings.KeyAdsInterFirst)
 
@@ -87,6 +90,9 @@ func waitFor(last *time.Time, interval time.Duration, now time.Time) time.Durati
 func (s *Service) Sponsored(ctx context.Context, playerID int64) (*SponsoredStatus, error) {
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTaskBlock, ""))
 	st := &SponsoredStatus{Enabled: s.settings.BoolOr(ctx, settings.KeyAdsTaskEnabled, false) && block != "", BlockID: block}
+	if st.Enabled && s.PlayerAdsOff(ctx, s.pool, playerID) {
+		st.Enabled = false
+	}
 	if !st.Enabled {
 		return st, nil
 	}
