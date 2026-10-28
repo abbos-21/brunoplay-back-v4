@@ -199,6 +199,7 @@ func (d *Deps) gameAdminRoutes(r chi.Router) {
 	r.With(d.adminAuth("gifts.write")).Post("/gifts/{id}/reject", httpx.Wrap(d.adminGiftReject))
 	r.With(d.adminAuth("dashboard.read")).Get("/games/guard", httpx.Wrap(d.adminGuard))
 	d.giftCatalogRoutes(r)
+	d.adProviderRoutes(r)
 }
 
 func (d *Deps) adminClaims(w http.ResponseWriter, r *http.Request) error {

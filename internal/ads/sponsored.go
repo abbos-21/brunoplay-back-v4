@@ -55,7 +55,7 @@ type Config struct {
 func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	c := &Config{}
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsInterBlock, ""))
-	c.Interstitial.Enabled = s.settings.BoolOr(ctx, settings.KeyAdsInterEnabled, false) && block != ""
+	c.Interstitial.Enabled = s.settings.BoolOr(ctx, settings.KeyAdsInterEnabled, false) && block != "" && s.ProviderOn(ctx, "adsgram", FormatInterstitial)
 	c.Interstitial.BlockID = block
 	if c.Interstitial.Enabled && s.PlayerAdsOff(ctx, s.pool, playerID) {
 		c.Interstitial.Enabled = false
@@ -89,7 +89,7 @@ func waitFor(last *time.Time, interval time.Duration, now time.Time) time.Durati
 // Sponsored tells whether the task is on, and whether the player may do one now (the interval since the last paid one has passed).
 func (s *Service) Sponsored(ctx context.Context, playerID int64) (*SponsoredStatus, error) {
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTaskBlock, ""))
-	st := &SponsoredStatus{Enabled: s.settings.BoolOr(ctx, settings.KeyAdsTaskEnabled, false) && block != "", BlockID: block}
+	st := &SponsoredStatus{Enabled: s.settings.BoolOr(ctx, settings.KeyAdsTaskEnabled, false) && block != "" && s.ProviderOn(ctx, "adsgram", FormatTask), BlockID: block}
 	if st.Enabled && s.PlayerAdsOff(ctx, s.pool, playerID) {
 		st.Enabled = false
 	}
@@ -120,7 +120,7 @@ func blockNumber(id string) string { return strings.TrimPrefix(strings.TrimSpace
 // It records one claimable completion. Unknown users, repeats and switched-off tasks are not errors (the callback is answered 200).
 func (s *Service) SponsoredDone(ctx context.Context, telegramID int64, blockID string) (bool, error) {
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTaskBlock, ""))
-	if !s.settings.BoolOr(ctx, settings.KeyAdsTaskEnabled, false) || block == "" {
+	if !s.settings.BoolOr(ctx, settings.KeyAdsTaskEnabled, false) || block == "" || !s.ProviderOn(ctx, "adsgram", FormatTask) {
 		return false, nil
 	}
 	if blockID != "" && blockNumber(blockID) != blockNumber(block) {

@@ -18,8 +18,11 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.interstitial.interval_seconds` | int | `180` | Interstitial: minimum seconds between two ads for one player |
 | `ads.max_failed_loads` | int | `3` | Failed ad loads in a row after which the action is allowed without an ad |
 | `ads.placements_enabled` | json | `map[BONUS_COINS:true COLLECT:true COMBO_EXTRA:true DOUBLE_COMBO:true DOUBLE_STREAK:true FISHING_START:true RIDE_FREE:true TASK_ADS:true]` | Placement switches |
+| `ads.providers` | json | `[map[enabled:true id:adsgram] map[enabled:false id:tads]]` | Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page) |
 | `ads.required` | bool | `true` | Ads are required for fishing start and collect (keep ON in production) |
 | `ads.ride_free.max_per_day` | int | **required** | Free Ride runs (ad) per player per day |
+| `ads.tads.debug` | bool | `false` | TADS debug mode (test ads; keep OFF in production) |
+| `ads.tads.widget_id` | string | `` | TADS widget id (a number from the TADS dashboard) |
 | `ads.task.block_id` | string | `` | Adsgram block id of the Task block (task-123) |
 | `ads.task.enabled` | bool | `false` | Sponsored task (Adsgram Task block) on the Tasks screen |
 | `ads.task.interval_minutes` | int | `480` | Sponsored task: minutes between two paid tasks of one player (480 = 3 a day) |

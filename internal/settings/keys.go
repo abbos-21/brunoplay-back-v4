@@ -43,6 +43,9 @@ const (
 	KeyAdsTaskBlock    = "ads.task.block_id"
 	KeyAdsTaskCoins    = "ads.task.reward_coins"
 	KeyAdsTaskInterval = "ads.task.interval_minutes"
+	KeyAdsProviders    = "ads.providers"
+	KeyAdsTadsWidget   = "ads.tads.widget_id"
+	KeyAdsTadsDebug    = "ads.tads.debug"
 
 	// fishing, cards, boosters, levels
 	KeyCollectMinPct   = "fishing.collect_min_percent"
@@ -277,6 +280,10 @@ func Registry() []Def {
 		s(KeyAdsTaskBlock, "ads", "Adsgram block id of the Task block (task-123)", ""),
 		i(KeyAdsTaskCoins, "ads", "Coins for one completed sponsored task", 2000, 1, big),
 		i(KeyAdsTaskInterval, "ads", "Sponsored task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),
+		arr(KeyAdsProviders, "ads", "Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page)",
+			[]map[string]any{{"id": "adsgram", "enabled": true}, {"id": "tads", "enabled": false}}),
+		s(KeyAdsTadsWidget, "ads", "TADS widget id (a number from the TADS dashboard)", ""),
+		b(KeyAdsTadsDebug, "ads", "TADS debug mode (test ads; keep OFF in production)", false),
 
 		i(KeyCollectMinPct, "fishing", "Minimum tank fill (%) needed to collect", 10, 0, 100),
 		cards(KeyCardsMining, "fishing", "Mining-rate card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10", nil),

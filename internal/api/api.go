@@ -97,6 +97,7 @@ func NewDeps(cfg config.Config, pool *pgxpool.Pool) *Deps {
 	}
 	d.Ads = ads.New(pool, st, cfg.AdsWebhookSec)
 	d.Ads.Now = d.now
+	d.Ads.SetPublicURL(cfg.PublicAPIURL)
 	d.Fishing = fishing.NewService(pool, st, d.Ads, ps)
 	d.Fishing.Now = d.now
 	d.Shop = shop.NewService(pool, st, ps, d.Fishing)
@@ -173,7 +174,9 @@ func (d *Deps) Routes() chi.Router {
 		r.Post("/webhooks/adsgram", httpx.Wrap(d.adsgramWebhook))
 		r.Get("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
 		r.Post("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
-		r.Post("/webhooks/telegram", httpx.Wrap(d.telegramWebhook))
+		r.Get("/webhooks/tads", httpx.Wrap(d.tadsWebhook))
+		r.Post("/webhooks/tads", httpx.Wrap(d.tadsWebhook))
+		r.Post("/webhooks/telegram",httpx.Wrap(d.telegramWebhook))
 		r.Get("/gift-images/{key}", httpx.Wrap(d.giftImage))
 		d.playerRoutes(r)
 		d.adminRoutes(r)

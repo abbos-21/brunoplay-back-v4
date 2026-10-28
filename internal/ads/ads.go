@@ -50,7 +50,12 @@ type Service struct {
 	settings *settings.Service
 	secret   string
 	Now      func() time.Time
+	// publicURL is the address of this API (only used to show the webhook addresses on the admin Ads page)
+	publicURL string
 }
+
+// SetPublicURL sets the address shown on the admin Ads page.
+func (s *Service) SetPublicURL(u string) { s.publicURL = u }
 
 func New(pool *pgxpool.Pool, st *settings.Service, webhookSecret string) *Service {
 	return &Service{pool: pool, settings: st, secret: webhookSecret, Now: time.Now}
@@ -67,8 +72,10 @@ func (s *Service) Required(ctx context.Context) bool {
 type View struct {
 	ID        string    `json:"adViewId"`
 	Placement string    `json:"placement"`
-	BlockID   string    `json:"blockId"`
-	ExpiresAt time.Time `json:"expiresAt"`
+	BlockID   string    `json:"blockId"` // the Adsgram block (kept for older apps); Providers is the full list
+	// Providers is the priority list for this ad: the app tries them in order and moves on when one has no ad.
+	Providers []ProviderRef `json:"providers"`
+	ExpiresAt time.Time     `json:"expiresAt"`
 	Required  bool      `json:"required"`
 	Fallback  bool      `json:"fallback,omitempty"`
 	// Skip: this player has ads switched off (admin panel). The proof is already completed: the app must not show an ad, only use it.
@@ -134,29 +141,34 @@ func (s *Service) Request(ctx context.Context, playerID int64, placement string)
 		return v, nil
 	}
 	required := s.Required(ctx)
-	block, err := s.blockID(ctx, placement)
-	if err != nil {
-		if required {
-			return nil, err // CONFIG_MISSING: the owner has not entered the Adsgram block ids yet
-		}
-		block = ""
+	chain := s.Chain(ctx, placement)
+	if required && len(chain) == 0 {
+		// every provider is switched off or not set up yet (admin: Ads page)
+		return nil, apperr.ConfigMissing.With("key", settings.KeyAdsProviders)
 	}
-	if required && block == "" {
-		return nil, apperr.ConfigMissing.With("key", settings.KeyAdsBlockIDs)
+	block := ""
+	for _, r := range chain {
+		if r.ID == "adsgram" {
+			block = r.BlockID
+			break
+		}
 	}
 	ttl, err := s.settings.Int(ctx, settings.KeyAdsViewExpiry)
 	if err != nil {
 		return nil, err
 	}
 	now := s.now()
-	v := &View{ID: newID(), Placement: placement, BlockID: block, ExpiresAt: now.Add(time.Duration(ttl) * time.Second), Required: required}
-	// An ad the player never finished must not catch Adsgram's confirmation meant for this one: the callback carries only
-	// the user and the block, so there can be just one open request per player and placement.
+	if chain == nil {
+		chain = []ProviderRef{}
+	}
+	v := &View{ID: newID(), Placement: placement, BlockID: block, Providers: chain, ExpiresAt: now.Add(time.Duration(ttl) * time.Second), Required: required}
+	// An ad the player never finished must not catch a provider's confirmation meant for this one: the callbacks carry only
+	// the user (and the block), so there can be just one open request per player and placement.
 	if _, err := s.pool.Exec(ctx, `UPDATE ad_views SET status='EXPIRED' WHERE player_id=$1 AND placement=$2 AND status='PENDING'`, playerID, placement); err != nil {
 		return nil, err
 	}
-	_, err = s.pool.Exec(ctx, `INSERT INTO ad_views (id, player_id, placement, status, block_id, created_at, expires_at)
-		VALUES ($1,$2,$3,'PENDING',$4,$5,$6)`, v.ID, playerID, placement, block, now, v.ExpiresAt)
+	_, err = s.pool.Exec(ctx, `INSERT INTO ad_views (id, player_id, placement, status, block_id, providers, created_at, expires_at)
+		VALUES ($1,$2,$3,'PENDING',$4,$5,$6,$7)`, v.ID, playerID, placement, block, chainIDs(chain), now, v.ExpiresAt)
 	return v, err
 }
 
@@ -168,6 +180,16 @@ func (s *Service) SecretOK(got string) bool {
 // Complete is called by Adsgram's reward callback: the oldest open proof of that Telegram user (and block) becomes COMPLETED.
 // It reports whether a proof was found; unknown users or repeats are not errors (the callback is always answered 200).
 func (s *Service) Complete(ctx context.Context, telegramID int64, blockID string) (bool, error) {
+	return s.complete(ctx, telegramID, blockID, "adsgram")
+}
+
+// CompleteBy is the reward callback of a provider that does not know our blocks (TADS): the newest open proof of that Telegram
+// user that offered this provider becomes COMPLETED.
+func (s *Service) CompleteBy(ctx context.Context, telegramID int64, provider string) (bool, error) {
+	return s.complete(ctx, telegramID, "", provider)
+}
+
+func (s *Service) complete(ctx context.Context, telegramID int64, blockID, provider string) (bool, error) {
 	now := s.now()
 	var playerID int64
 	var id string
@@ -177,7 +199,8 @@ func (s *Service) Complete(ctx context.Context, telegramID int64, blockID string
 		}
 		err := tx.QueryRow(ctx, `UPDATE ad_views SET status='COMPLETED', completed_at=$3 WHERE id = (
 			SELECT id FROM ad_views WHERE player_id=$1 AND status='PENDING' AND expires_at > $3 AND ($2='' OR block_id=$2)
-			ORDER BY created_at DESC LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id`, playerID, blockID, now).Scan(&id)
+			AND ($4 = ANY(string_to_array(providers, ',')) OR providers = '') -- '' = proofs made before providers existed
+			ORDER BY created_at DESC LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id`, playerID, blockID, now, provider).Scan(&id)
 		if err != nil {
 			return err
 		}

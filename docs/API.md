@@ -69,6 +69,8 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/webhooks/adsgram` | webhook (secret) |
 | GET | `/api/webhooks/adsgram-task` | webhook (secret) |
 | POST | `/api/webhooks/adsgram-task` | webhook (secret) |
+| GET | `/api/webhooks/tads` | webhook (secret) |
+| POST | `/api/webhooks/tads` | webhook (secret) |
 | POST | `/api/webhooks/telegram` | webhook (secret) |
 | GET | `/api/withdrawals` | player |
 | POST | `/api/withdrawals` | player |
@@ -84,6 +86,8 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/admin/admins` | admin |
 | POST | `/api/admin/admins` | admin |
 | PATCH | `/api/admin/admins/{id}` | admin |
+| GET | `/api/admin/ads/providers` | admin |
+| PUT | `/api/admin/ads/providers` | admin |
 | GET | `/api/admin/audit` | admin |
 | POST | `/api/admin/auth/login` | public (admin sign-in) |
 | POST | `/api/admin/auth/logout` | public (admin sign-in) |
