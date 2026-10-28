@@ -20,6 +20,7 @@ const (
 	FormatRewarded     Format = "rewarded"     // the player watches it to get an action or a reward (proof required)
 	FormatInterstitial Format = "interstitial" // shown between games, nothing is paid
 	FormatTask         Format = "task"         // the sponsored task card
+	FormatBanner       Format = "banner"       // a block of ad cards inside a screen (nothing is paid)
 )
 
 // Field is one setting the admin edits on the Ads page for a provider.
@@ -78,9 +79,11 @@ var providers = []providerDef{
 		},
 	},
 	{
-		ID: "tads", Name: "TADS", Formats: []Format{FormatRewarded},
+		ID: "tads", Name: "TADS", Formats: []Format{FormatRewarded, FormatBanner},
 		Fields: []Field{
 			{Key: settings.KeyAdsTadsWidget, Label: "Widget id", Help: "The number of the Fullscreen banner (rewarded) widget in the TADS dashboard, for example 12941.", Kind: "string"},
+			{Key: settings.KeyAdsTadsTGB, Label: "TGB widget id (test card)", Kind: "string",
+				Help: "A TGB (text-graphic block) widget of TADS. When filled in, a card with its ads appears on the Tasks screen (it pays nothing). Empty = no card."},
 			{Key: settings.KeyAdsTadsWait, Label: "Wait for the ad to end (seconds)", Kind: "number",
 				Help: "TADS reports an ad when it STARTS, not when it ends. The game stays on hold this many seconds after the ad starts, and the server refuses the action before that. Watch one TADS ad, time it, and put its length (or a little more) here. 0 = no wait."},
 			{Key: settings.KeyAdsTadsDebug, Label: "Debug mode", Help: "Test ads. Keep it OFF in production.", Kind: "bool"},
@@ -290,8 +293,8 @@ func (s *Service) SaveProviders(ctx context.Context, list []Entry, fields map[st
 			if !isStr {
 				return apperr.AdminRefused.With("why", f.Label+" must be text")
 			}
-			if k == settings.KeyAdsTadsWidget && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
-				return apperr.AdminRefused.With("why", "The TADS widget id is a number (for example 12941)")
+			if (k == settings.KeyAdsTadsWidget || k == settings.KeyAdsTadsTGB) && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
+				return apperr.AdminRefused.With("why", "A TADS widget id is a number (for example 12941)")
 			}
 			fields[k] = strings.TrimSpace(str)
 		}

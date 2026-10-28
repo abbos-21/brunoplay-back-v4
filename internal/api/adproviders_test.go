@@ -195,3 +195,43 @@ func TestTadsProofWaitsForTheAdToEnd(t *testing.T) {
 		t.Fatalf("31s after the report: %d %s", r.Status, r.Body)
 	}
 }
+
+// The TADS test card (TGB widget) on the Tasks screen: only when its widget id is set and TADS is on; it never needs a proof.
+func TestTadsTestCardFollowsTheAdminSettings(t *testing.T) {
+	e := newEnv(t)
+	e.gameConfig()
+	boss := e.adminLogin("boss@example.com", admin.RoleSuper)
+	p := e.login(7003, "en", "")
+	save := func(on bool, tgb any) resp {
+		return e.do("PUT", "/api/admin/ads/providers", boss, map[string]any{
+			"providers": []map[string]any{{"id": "adsgram", "enabled": true}, {"id": "tads", "enabled": on}},
+			"fields":    map[string]any{settings.KeyAdsTadsTGB: tgb},
+		})
+	}
+	banner := func() map[string]any {
+		return e.do("GET", "/api/ads/config", p.Token, nil).JSON(t)["banner"].(map[string]any)
+	}
+	if b := banner(); b["enabled"] != false {
+		t.Fatalf("default: %v", b)
+	}
+	if r := save(true, "abc"); r.Code(t) != "ADMIN_ACTION_REFUSED" {
+		t.Fatalf("a widget id is a number: %d %s", r.Status, r.Body)
+	}
+	if r := save(true, "12944"); r.Status != 200 {
+		t.Fatalf("save: %d %s", r.Status, r.Body)
+	}
+	if b := banner(); b["enabled"] != true || b["widgetId"] != "12944" || b["provider"] != "tads" {
+		t.Fatalf("on: %v", b)
+	}
+	if r := save(false, "12944"); r.Status != 200 {
+		t.Fatal(r.Body)
+	}
+	if b := banner(); b["enabled"] != false {
+		t.Fatalf("tads off: %v", b)
+	}
+	save(true, "12944")
+	e.exec(`UPDATE players SET ads_disabled=TRUE WHERE id=$1`, p.ID)
+	if b := banner(); b["enabled"] != false {
+		t.Fatalf("ads off for the player: %v", b)
+	}
+}

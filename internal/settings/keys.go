@@ -47,6 +47,7 @@ const (
 	KeyAdsTadsWidget   = "ads.tads.widget_id"
 	KeyAdsTadsDebug    = "ads.tads.debug"
 	KeyAdsTadsWait     = "ads.tads.wait_seconds"
+	KeyAdsTadsTGB      = "ads.tads.tgb_widget_id"
 
 	// fishing, cards, boosters, levels
 	KeyCollectMinPct   = "fishing.collect_min_percent"
@@ -284,6 +285,7 @@ func Registry() []Def {
 		arr(KeyAdsProviders, "ads", "Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page)",
 			[]map[string]any{{"id": "adsgram", "enabled": true}, {"id": "tads", "enabled": false}}),
 		s(KeyAdsTadsWidget, "ads", "TADS widget id (a number from the TADS dashboard)", ""),
+		s(KeyAdsTadsTGB, "ads", "TADS TGB widget id for the test card on the Tasks screen (empty = no card)", ""),
 		b(KeyAdsTadsDebug, "ads", "TADS debug mode (test ads; keep OFF in production)", false),
 		i(KeyAdsTadsWait, "ads", "TADS: seconds after TADS reports the ad before the action may go ahead (TADS reports when the ad starts, so set the ad's length)", 15, 0, 120),
 
