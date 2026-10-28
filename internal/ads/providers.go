@@ -27,7 +27,7 @@ type Field struct {
 	Key   string `json:"key"`
 	Label string `json:"label"`
 	Help  string `json:"help"`
-	Kind  string `json:"kind"` // "string" | "bool"
+	Kind  string `json:"kind"` // "string" | "bool" | "number"
 }
 
 // ProviderRef is what the app needs to play an ad of one provider.
@@ -36,6 +36,9 @@ type ProviderRef struct {
 	BlockID  string `json:"blockId,omitempty"`  // Adsgram
 	WidgetID string `json:"widgetId,omitempty"` // TADS
 	Debug    bool   `json:"debug,omitempty"`
+	// WaitSeconds: the provider reports an ad when it STARTS, not when it ends. The server accepts the proof this many seconds after
+	// the report, and the app waits as long before it goes on.
+	WaitSeconds int `json:"waitSeconds,omitempty"`
 }
 
 type providerDef struct {
@@ -44,6 +47,8 @@ type providerDef struct {
 	Formats   []Format
 	DefaultOn bool
 	Fields    []Field
+	// WaitKey is the setting with the seconds to wait after the provider's report (empty: the report comes when the ad is over)
+	WaitKey string
 	// Ref returns what the app needs for a placement, or false when the provider is not set up (no block id, no widget id...).
 	Ref func(ctx context.Context, s *Service, placement string) (ProviderRef, bool)
 	// Webhooks lists the addresses the admin must give to the provider's dashboard (publicURL has no trailing slash).
@@ -76,11 +81,15 @@ var providers = []providerDef{
 		ID: "tads", Name: "TADS", Formats: []Format{FormatRewarded},
 		Fields: []Field{
 			{Key: settings.KeyAdsTadsWidget, Label: "Widget id", Help: "The number of the Fullscreen banner (rewarded) widget in the TADS dashboard, for example 12941.", Kind: "string"},
+			{Key: settings.KeyAdsTadsWait, Label: "Wait for the ad to end (seconds)", Kind: "number",
+				Help: "TADS reports an ad when it STARTS, not when it ends. The game stays on hold this many seconds after the ad starts, and the server refuses the action before that. Watch one TADS ad, time it, and put its length (or a little more) here. 0 = no wait."},
 			{Key: settings.KeyAdsTadsDebug, Label: "Debug mode", Help: "Test ads. Keep it OFF in production.", Kind: "bool"},
 		},
+		WaitKey: settings.KeyAdsTadsWait,
 		Ref: func(ctx context.Context, s *Service, placement string) (ProviderRef, bool) {
 			w := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTadsWidget, ""))
-			return ProviderRef{ID: "tads", WidgetID: w, Debug: s.settings.BoolOr(ctx, settings.KeyAdsTadsDebug, false)}, widgetRe.MatchString(w)
+			wait, _ := s.settings.Int(ctx, settings.KeyAdsTadsWait)
+			return ProviderRef{ID: "tads", WidgetID: w, Debug: s.settings.BoolOr(ctx, settings.KeyAdsTadsDebug, false), WaitSeconds: int(wait)}, widgetRe.MatchString(w)
 		},
 		Webhooks: func(u string) []Webhook {
 			return []Webhook{{Label: "Widget webhook (method POST)", URL: u + "/api/webhooks/tads?secret=YOUR_SECRET", Note: "YOUR_SECRET is ADSGRAM_WEBHOOK_SECRET from the server's .env (the same secret is used)"}}
@@ -97,6 +106,19 @@ func findProvider(id string) *providerDef {
 		}
 	}
 	return nil
+}
+
+// waitSeconds is how long after the provider's report the proof becomes usable (0 for providers that report at the end of the ad).
+func (s *Service) waitSeconds(ctx context.Context, provider string) int64 {
+	p := findProvider(provider)
+	if p == nil || p.WaitKey == "" {
+		return 0
+	}
+	n, err := s.settings.Int(ctx, p.WaitKey)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
 }
 
 func (p *providerDef) has(f Format) bool {
@@ -203,9 +225,13 @@ func (s *Service) ProvidersView(ctx context.Context) []ProviderView {
 		}
 		for _, f := range p.Fields {
 			fv := FieldView{Field: f}
-			if f.Kind == "bool" {
+			switch f.Kind {
+			case "bool":
 				fv.Value = s.settings.BoolOr(ctx, f.Key, false)
-			} else {
+			case "number":
+				n, _ := s.settings.Int(ctx, f.Key)
+				fv.Value = n
+			default:
 				fv.Value = s.settings.StrOr(ctx, f.Key, "")
 			}
 			v.Fields = append(v.Fields, fv)
@@ -268,6 +294,11 @@ func (s *Service) SaveProviders(ctx context.Context, list []Entry, fields map[st
 				return apperr.AdminRefused.With("why", "The TADS widget id is a number (for example 12941)")
 			}
 			fields[k] = strings.TrimSpace(str)
+		}
+		if f.Kind == "number" {
+			if n, isNum := v.(float64); !isNum || n != float64(int64(n)) {
+				return apperr.AdminRefused.With("why", f.Label+" must be a whole number")
+			}
 		}
 	}
 	for k, v := range fields {

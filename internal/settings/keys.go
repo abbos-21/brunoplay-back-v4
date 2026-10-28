@@ -46,6 +46,7 @@ const (
 	KeyAdsProviders    = "ads.providers"
 	KeyAdsTadsWidget   = "ads.tads.widget_id"
 	KeyAdsTadsDebug    = "ads.tads.debug"
+	KeyAdsTadsWait     = "ads.tads.wait_seconds"
 
 	// fishing, cards, boosters, levels
 	KeyCollectMinPct   = "fishing.collect_min_percent"
@@ -284,6 +285,7 @@ func Registry() []Def {
 			[]map[string]any{{"id": "adsgram", "enabled": true}, {"id": "tads", "enabled": false}}),
 		s(KeyAdsTadsWidget, "ads", "TADS widget id (a number from the TADS dashboard)", ""),
 		b(KeyAdsTadsDebug, "ads", "TADS debug mode (test ads; keep OFF in production)", false),
+		i(KeyAdsTadsWait, "ads", "TADS: seconds after TADS reports the ad before the action may go ahead (TADS reports when the ad starts, so set the ad's length)", 15, 0, 120),
 
 		i(KeyCollectMinPct, "fishing", "Minimum tank fill (%) needed to collect", 10, 0, 100),
 		cards(KeyCardsMining, "fishing", "Mining-rate card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10", nil),

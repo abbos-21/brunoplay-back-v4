@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"testing"
+	"time"
 
 	"brunoplay/internal/admin"
 	"brunoplay/internal/settings"
@@ -71,7 +72,7 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 	}
 
 	// TADS first, with a widget: the app asks TADS, then Adsgram
-	r := save(boss, map[string]any{"providers": list(pr("tads", true), pr("adsgram", true)), "fields": map[string]any{settings.KeyAdsTadsWidget: "12941"}})
+	r := save(boss, map[string]any{"providers": list(pr("tads", true), pr("adsgram", true)), "fields": map[string]any{settings.KeyAdsTadsWidget: "12941", settings.KeyAdsTadsWait: 0}})
 	if r.Status != 200 {
 		t.Fatalf("save: %d %s", r.Status, r.Body)
 	}
@@ -150,5 +151,47 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 	pv := e.do("GET", "/api/admin/ads/providers", boss, nil).JSON(t)
 	if ids := providerIDs(t, pv); !eq(ids, []string{"adsgram", "tads"}) {
 		t.Fatalf("admin view: %v", pv)
+	}
+}
+
+// TADS reports an ad when it STARTS. The proof it completes can be spent only after the wait set in the admin panel.
+func TestTadsProofWaitsForTheAdToEnd(t *testing.T) {
+	e := newEnv(t)
+	e.gameConfig()
+	boss := e.adminLogin("boss@example.com", admin.RoleSuper)
+	p := e.login(7002, "en", "")
+	body := map[string]any{
+		"providers": []map[string]any{{"id": "tads", "enabled": true}, {"id": "adsgram", "enabled": false}},
+		"fields":    map[string]any{settings.KeyAdsTadsWidget: "12941", settings.KeyAdsTadsWait: 30},
+	}
+	if r := e.do("PUT", "/api/admin/ads/providers", boss, body); r.Status != 200 {
+		t.Fatalf("save: %d %s", r.Status, r.Body)
+	}
+	// a wait that is not a whole number, or out of range, is refused
+	for _, bad := range []any{1.5, "x", -1, 500} {
+		body["fields"] = map[string]any{settings.KeyAdsTadsWait: bad}
+		if r := e.do("PUT", "/api/admin/ads/providers", boss, body); r.Status == 200 {
+			t.Fatalf("wait %v must be refused: %s", bad, r.Body)
+		}
+	}
+
+	view := e.do("POST", "/api/ads", p.Token, map[string]any{"placement": "FISHING_START"}).JSON(t)
+	if ref := view["providers"].([]any)[0].(map[string]any); ref["waitSeconds"] != float64(30) {
+		t.Fatalf("the app must be told the wait: %v", ref)
+	}
+	hook := "/api/webhooks/tads?secret=adsecret"
+	if r := e.do("POST", hook, "", map[string]any{"telegram_id": "7002", "widget_id": "12941"}); r.JSON(t)["ok"] != true {
+		t.Fatalf("callback: %s", r.Body)
+	}
+	start := func() resp { return e.do("POST", "/api/fishing/start", p.Token, map[string]any{"adViewId": view["adViewId"]}) }
+
+	// reported, but the ad is still running: not usable yet
+	e.now = e.now.Add(10 * time.Second)
+	if r := start(); r.Code(t) != "AD_NOT_COMPLETED" {
+		t.Fatalf("10s after the report: %d %s", r.Status, r.Body)
+	}
+	e.now = e.now.Add(21 * time.Second)
+	if r := start(); r.Status != 200 {
+		t.Fatalf("31s after the report: %d %s", r.Status, r.Body)
 	}
 }

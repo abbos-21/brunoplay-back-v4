@@ -22,6 +22,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.required` | bool | `true` | Ads are required for fishing start and collect (keep ON in production) |
 | `ads.ride_free.max_per_day` | int | **required** | Free Ride runs (ad) per player per day |
 | `ads.tads.debug` | bool | `false` | TADS debug mode (test ads; keep OFF in production) |
+| `ads.tads.wait_seconds` | int | `15` | TADS: seconds after TADS reports the ad before the action may go ahead (TADS reports when the ad starts, so set the ad's length) |
 | `ads.tads.widget_id` | string | `` | TADS widget id (a number from the TADS dashboard) |
 | `ads.task.block_id` | string | `` | Adsgram block id of the Task block (task-123) |
 | `ads.task.enabled` | bool | `false` | Sponsored task (Adsgram Task block) on the Tasks screen |

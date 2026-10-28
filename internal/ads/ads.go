@@ -197,10 +197,11 @@ func (s *Service) complete(ctx context.Context, telegramID int64, blockID, provi
 		if err := tx.QueryRow(ctx, `SELECT id FROM players WHERE telegram_id=$1`, telegramID).Scan(&playerID); err != nil {
 			return err
 		}
-		err := tx.QueryRow(ctx, `UPDATE ad_views SET status='COMPLETED', completed_at=$3 WHERE id = (
+		err := tx.QueryRow(ctx, `UPDATE ad_views SET status='COMPLETED', completed_at=$3,
+			usable_at = CASE WHEN $5::bigint > 0 THEN $3::timestamptz + $5::bigint * interval '1 second' END WHERE id = (
 			SELECT id FROM ad_views WHERE player_id=$1 AND status='PENDING' AND expires_at > $3 AND ($2='' OR block_id=$2)
 			AND ($4 = ANY(string_to_array(providers, ',')) OR providers = '') -- '' = proofs made before providers existed
-			ORDER BY created_at DESC LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id`, playerID, blockID, now, provider).Scan(&id)
+			ORDER BY created_at DESC LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id`, playerID, blockID, now, provider, s.waitSeconds(ctx, provider)).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -257,7 +258,7 @@ func (s *Service) Consume(ctx context.Context, tx db.Querier, playerID int64, ad
 	now := s.now()
 	var id string
 	err := tx.QueryRow(ctx, `UPDATE ad_views SET status='USED', used_at=$4, used_for=$5
-		WHERE id=$1 AND player_id=$2 AND placement=$3 AND status='COMPLETED' AND expires_at > $4 RETURNING id`,
+		WHERE id=$1 AND player_id=$2 AND placement=$3 AND status='COMPLETED' AND expires_at > $4 AND (usable_at IS NULL OR usable_at <= $4) RETURNING id`,
 		adID, playerID, placement, now, usedFor).Scan(&id)
 	if err == nil {
 		return nil
