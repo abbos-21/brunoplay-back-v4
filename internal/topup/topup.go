@@ -116,7 +116,8 @@ func tgPrice(stars int64, ratio float64) int64 {
 	return p
 }
 
-// tonPrice is the price in nanoTON, rounded up.
+// tonPrice is the price in nanoTON, rounded up to a WHOLE TON (1.449 TON becomes 2, 72.46 becomes 73): round numbers are easier to read
+// and to pay, and the same function prices the list and the order, so what the player sees is what the wallet asks for.
 func tonPrice(stars int64, starsPerTon float64) int64 {
 	if starsPerTon <= 0 {
 		return 0
@@ -128,7 +129,9 @@ func tonPrice(stars int64, starsPerTon float64) int64 {
 	if acc != big.Exact {
 		i.Add(i, big.NewInt(1))
 	}
-	return i.Int64()
+	whole := new(big.Int).Add(i, big.NewInt(ton.Nano-1))
+	whole.Div(whole, big.NewInt(ton.Nano))
+	return whole.Int64() * ton.Nano
 }
 
 type PackView struct {
