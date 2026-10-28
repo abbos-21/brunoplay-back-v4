@@ -134,6 +134,9 @@ func TestResetStartsThePlayerOverAndKeepsTheMoneyTrail(t *testing.T) {
 		t.Fatalf("open withdrawal: %d %s", r.Status, r.Body)
 	}
 	e.exec(`DELETE FROM withdrawals WHERE player_id=$1`, p.ID)
+	// an invoice the player opened and never paid does not block a reset: it is closed
+	e.exec(`INSERT INTO topup_orders (id, player_id, method, status, pack_stars, bonus_stars, bonus_percent, price, created_at, expires_at)
+		VALUES ('ord-unpaid', $1, 'TG_STARS', 'PENDING', 100, 0, 0, 100, now(), now() + interval '1 day')`, p.ID)
 	// a blocked player cannot reset its way out
 	e.exec(`UPDATE players SET is_blocked=TRUE WHERE id=$1`, p.ID)
 	if r := e.do("POST", reset, boss, map[string]any{"confirm": true, "reason": "test"}); r.Code(t) != "ADMIN_ACTION_REFUSED" {
@@ -143,6 +146,10 @@ func TestResetStartsThePlayerOverAndKeepsTheMoneyTrail(t *testing.T) {
 
 	if r := e.do("POST", reset, boss, map[string]any{"confirm": true, "reason": "fresh start"}); r.Status != 200 {
 		t.Fatalf("reset: %d %s", r.Status, r.Body)
+	}
+	var orderStatus string
+	if err := e.d.Pool.QueryRow(context.Background(), `SELECT status FROM topup_orders WHERE id='ord-unpaid'`).Scan(&orderStatus); err != nil || orderStatus != "FAILED" {
+		t.Fatalf("the unpaid invoice must be closed: %q %v", orderStatus, err)
 	}
 	// the old record: archived, balances zero through the ledger, history kept
 	if e.coins(p) != 0 || e.ledgerTotal(p.ID, "COIN") != 0 || e.ledgerTotal(p.ID, "STAR") != 0 {

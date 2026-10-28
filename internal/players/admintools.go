@@ -70,8 +70,8 @@ func (s *Store) SetAdsDisabled(ctx context.Context, playerID int64, off bool) er
 // Reset starts the player over. The old record, with its whole money trail (ledger, withdrawals, top-ups), is archived
 // under the same id; its coins and stars are brought to zero through the ledger, and the Telegram account is freed. The next time
 // the person opens the game they sign up as a brand-new player: level 1, no coins, no stars, no cards, no tasks done.
-// It is refused while money is still on its way (open withdrawal, gift claim, unfinished top-up) and for a blocked player
-// (a reset must not be a way out of a block).
+// It is refused while money is still on its way (open withdrawal or gift claim) and for a blocked player
+// (a reset must not be a way out of a block). Unpaid top-up invoices are closed.
 func (s *Store) Reset(ctx context.Context, playerID, adminID int64, reason string) (archivedTelegramID int64, err error) {
 	err = db.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		var coins, stars int64
@@ -86,15 +86,18 @@ func (s *Store) Reset(ctx context.Context, playerID, adminID int64, reason strin
 		if blocked {
 			return refused("The player is blocked: unblock first (a reset must not lift a block)")
 		}
-		var wd, gifts, topups int
+		var wd, gifts int
 		if err := tx.QueryRow(ctx, `SELECT
 			(SELECT count(*) FROM withdrawals WHERE player_id=$1 AND status IN ('PENDING','PROCESSING')),
-			(SELECT count(*) FROM player_gifts WHERE player_id=$1 AND status='CLAIM_REQUESTED'),
-			(SELECT count(*) FROM topup_orders WHERE player_id=$1 AND status='PENDING')`, playerID).Scan(&wd, &gifts, &topups); err != nil {
+			(SELECT count(*) FROM player_gifts WHERE player_id=$1 AND status='CLAIM_REQUESTED')`, playerID).Scan(&wd, &gifts); err != nil {
 			return err
 		}
-		if wd > 0 || gifts > 0 || topups > 0 {
-			return refused("The player has money on its way (%d withdrawal, %d gift claim, %d top-up not finished): finish or cancel them first", wd, gifts, topups)
+		if wd > 0 || gifts > 0 {
+			return refused("The player has a withdrawal in progress (%d) or a gift waiting for delivery (%d): finish or reject it first (Withdrawals / Gift claims)", wd, gifts)
+		}
+		// invoices the player opened but did not pay move no money; they are closed so nothing can be credited to the archived record later
+		if _, err := tx.Exec(ctx, `UPDATE topup_orders SET status='FAILED', note='closed by an admin reset' WHERE player_id=$1 AND status='PENDING'`, playerID); err != nil {
+			return err
 		}
 		meta := map[string]any{"admin": adminID, "reason": reason, "reset": true}
 		if coins != 0 {
