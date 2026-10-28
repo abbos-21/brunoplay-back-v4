@@ -126,6 +126,7 @@ var (
 	AdUsed         = def("AD_ALREADY_USED", http.StatusConflict, "This ad was already used", "Эта реклама уже использована")
 	AdLimit        = def("AD_LIMIT_REACHED", http.StatusConflict, "Daily limit reached, come back tomorrow", "Дневной лимит исчерпан, возвращайтесь завтра")
 	AdDisabled     = def("AD_PLACEMENT_DISABLED", http.StatusConflict, "This option is switched off", "Эта опция отключена")
+	AdTaskWait     = def("AD_TASK_NOT_READY", http.StatusConflict, "The next sponsored task is not available yet", "Следующее спонсорское задание пока недоступно")
 
 	// fishing
 	SessionRunning  = def("SESSION_ALREADY_RUNNING", http.StatusConflict, "Fishing is already running", "Рыбалка уже идёт")

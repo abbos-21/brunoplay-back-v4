@@ -42,7 +42,7 @@ const (
 	KeyAdsTaskEnabled  = "ads.task.enabled"
 	KeyAdsTaskBlock    = "ads.task.block_id"
 	KeyAdsTaskCoins    = "ads.task.reward_coins"
-	KeyAdsTaskPerDay   = "ads.task.max_per_day"
+	KeyAdsTaskInterval = "ads.task.interval_minutes"
 
 	// fishing, cards, boosters, levels
 	KeyCollectMinPct   = "fishing.collect_min_percent"
@@ -276,7 +276,7 @@ func Registry() []Def {
 		b(KeyAdsTaskEnabled, "ads", "Sponsored task (Adsgram Task block) on the Tasks screen", false),
 		s(KeyAdsTaskBlock, "ads", "Adsgram block id of the Task block (task-123)", ""),
 		i(KeyAdsTaskCoins, "ads", "Coins for one completed sponsored task", 2000, 1, big),
-		i(KeyAdsTaskPerDay, "ads", "Sponsored tasks that pay per player per day", 3, 0, 1000),
+		i(KeyAdsTaskInterval, "ads", "Sponsored task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),
 
 		i(KeyCollectMinPct, "fishing", "Minimum tank fill (%) needed to collect", 10, 0, 100),
 		cards(KeyCardsMining, "fishing", "Mining-rate card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10", nil),

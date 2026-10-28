@@ -12,7 +12,7 @@ func (e *env) adTaskConfig() {
 	e.setSetting(settings.KeyAdsTaskEnabled, true)
 	e.setSetting(settings.KeyAdsTaskBlock, "task-777")
 	e.setSetting(settings.KeyAdsTaskCoins, 2000)
-	e.setSetting(settings.KeyAdsTaskPerDay, 2)
+	e.setSetting(settings.KeyAdsTaskInterval, 60)
 }
 
 // taskCallback is Adsgram's server-to-server call of the Task block's Reward URL.
@@ -68,7 +68,7 @@ func TestSponsoredTaskPaysOnlyAfterAdsgramCallsBack(t *testing.T) {
 		t.Fatalf("balance: %d", e.coins(p))
 	}
 	// one completion pays once
-	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Code(t) != "AD_NOT_COMPLETED" {
+	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Code(t) != "AD_TASK_NOT_READY" {
 		t.Fatalf("second claim: %s", r.Body)
 	}
 	if e.coins(p) != 2000 {
@@ -76,49 +76,57 @@ func TestSponsoredTaskPaysOnlyAfterAdsgramCallsBack(t *testing.T) {
 	}
 }
 
-func TestSponsoredTaskDailyLimitAndSwitch(t *testing.T) {
+func TestSponsoredTaskIntervalAndSwitch(t *testing.T) {
 	e := newEnv(t)
 	e.gameConfig()
-	e.adTaskConfig()
+	e.adTaskConfig() // one paid task per 60 minutes
 	p := e.login(5102, "en", "")
-
-	for i := 0; i < 2; i++ {
-		e.now = e.now.Add(time.Minute)
-		if r := e.taskCallback("5102", nil); r.JSON(t)["ok"] != true {
-			t.Fatalf("callback %d: %s", i, r.Body)
-		}
-		if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Status != 200 {
-			t.Fatalf("claim %d: %d %s", i, r.Status, r.Body)
-		}
+	task := func() map[string]any {
+		return e.do("GET", "/api/ads/config", p.Token, nil).JSON(t)["task"].(map[string]any)
 	}
-	// the third completion of the day is recorded but not paid, and the day counter is not spent by the refusal
-	e.now = e.now.Add(time.Minute)
-	e.taskCallback("5102", nil)
-	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Code(t) != "AD_LIMIT_REACHED" {
-		t.Fatalf("limit: %d %s", r.Status, r.Body)
+
+	if c := task(); c["available"] != true || c["nextInSeconds"] != float64(0) || c["intervalMinutes"] != float64(60) {
+		t.Fatalf("before the first task: %v", c)
+	}
+	if r := e.taskCallback("5102", nil); r.JSON(t)["ok"] != true {
+		t.Fatalf("callback: %s", r.Body)
+	}
+	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Status != 200 {
+		t.Fatalf("claim: %d %s", r.Status, r.Body)
+	}
+
+	// during the interval: nothing to do, a callback is not kept, a claim is refused, and the status says when it is back
+	e.now = e.now.Add(20 * time.Minute)
+	if c := task(); c["available"] != false || c["nextInSeconds"] != float64(40*60) {
+		t.Fatalf("during the wait: %v", c)
+	}
+	if r := e.taskCallback("5102", nil); r.JSON(t)["ok"] != false {
+		t.Fatalf("callback during the wait must be ignored: %s", r.Body)
+	}
+	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Code(t) != "AD_TASK_NOT_READY" {
+		t.Fatalf("claim during the wait: %d %s", r.Status, r.Body)
+	}
+	if e.coins(p) != 2000 {
+		t.Fatalf("balance: %d", e.coins(p))
+	}
+
+	// when the interval is over the next task pays again
+	e.now = e.now.Add(41 * time.Minute)
+	if c := task(); c["available"] != true || c["nextInSeconds"] != float64(0) {
+		t.Fatalf("after the wait: %v", c)
+	}
+	if r := e.taskCallback("5102", nil); r.JSON(t)["ok"] != true {
+		t.Fatalf("next callback: %s", r.Body)
+	}
+	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Status != 200 {
+		t.Fatalf("next claim: %d %s", r.Status, r.Body)
 	}
 	if e.coins(p) != 4000 {
 		t.Fatalf("balance: %d", e.coins(p))
 	}
-	cfg := e.do("GET", "/api/ads/config", p.Token, nil).JSON(t)
-	task := cfg["task"].(map[string]any)
-	if task["left"] != float64(0) || task["enabled"] != true || task["blockId"] != "task-777" {
-		t.Fatalf("config: %v", task)
-	}
-
-	// the unpaid completion expires after a few hours; on the next game day a new one pays again
-	e.now = e.now.Add(24 * time.Hour)
-	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Code(t) != "AD_NOT_COMPLETED" {
-		t.Fatalf("expired completion: %d %s", r.Status, r.Body)
-	}
-	if r := e.taskCallback("5102", nil); r.JSON(t)["ok"] != true {
-		t.Fatalf("next day callback: %s", r.Body)
-	}
-	if r := e.do("POST", "/api/ads/task/claim", p.Token, map[string]any{}); r.Status != 200 {
-		t.Fatalf("next day claim: %d %s", r.Status, r.Body)
-	}
 
 	// switched off: callbacks are ignored and claims refused
+	e.now = e.now.Add(2 * time.Hour)
 	e.setSetting(settings.KeyAdsTaskEnabled, false)
 	if r := e.taskCallback("5102", nil); r.JSON(t)["ok"] != false {
 		t.Fatalf("callback while off: %s", r.Body)

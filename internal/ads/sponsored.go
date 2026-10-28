@@ -9,7 +9,6 @@ import (
 
 	"brunoplay/internal/apperr"
 	"brunoplay/internal/db"
-	"brunoplay/internal/gameday"
 	"brunoplay/internal/ledger"
 	"brunoplay/internal/settings"
 )
@@ -22,7 +21,6 @@ const (
 	// SponsoredTask is the placement name of those rows. It is deliberately NOT in Placements: the app cannot request it.
 	SponsoredTask = "SPONSORED_TASK"
 
-	sponsoredKey     = "sponsored_task" // per-day counter
 	sponsoredKeep    = 6 * time.Hour    // how long a completed task can wait to be claimed
 	sponsoredMaxOpen = 5                // completions waiting to be claimed, per player
 	sponsoredRepeat  = 10 * time.Second // the same callback sent twice in a row counts once
@@ -36,14 +34,15 @@ type InterstitialConfig struct {
 	FirstAfterSeconds int64  `json:"firstAfterSeconds"`
 }
 
-// SponsoredStatus is what the Tasks screen needs to show (or hide) the sponsored task.
+// SponsoredStatus is what the Tasks screen needs to show (or hide) the sponsored task. After a paid task the next one is
+// available only when the admin's interval (minutes) has passed: Available says whether it is now, NextInSeconds how long to wait.
 type SponsoredStatus struct {
-	Enabled bool   `json:"enabled"`
-	BlockID string `json:"blockId"`
-	Coins   int64  `json:"coins"`
-	PerDay  int64  `json:"perDay"`
-	Used    int64  `json:"usedToday"`
-	Left    int64  `json:"left"`
+	Enabled         bool   `json:"enabled"`
+	BlockID         string `json:"blockId"`
+	Coins           int64  `json:"coins"`
+	IntervalMinutes int64  `json:"intervalMinutes"`
+	Available       bool   `json:"available"`
+	NextInSeconds   int64  `json:"nextInSeconds"`
 }
 
 // Config is the answer of GET /api/ads/config.
@@ -69,7 +68,22 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	return c, nil
 }
 
-// Sponsored tells whether the task is on, and how many more rewards the player can get today.
+// lastPaid is when the player was last paid for a sponsored task (nil: never).
+func (s *Service) lastPaid(ctx context.Context, q db.Querier, playerID int64) (*time.Time, error) {
+	var at *time.Time
+	err := q.QueryRow(ctx, `SELECT max(used_at) FROM ad_views WHERE player_id=$1 AND placement=$2 AND status='USED'`, playerID, SponsoredTask).Scan(&at)
+	return at, err
+}
+
+// waitFor is how long until the next paid task is allowed (0 = now).
+func waitFor(last *time.Time, interval time.Duration, now time.Time) time.Duration {
+	if last == nil {
+		return 0
+	}
+	return max(last.Add(interval).Sub(now), 0)
+}
+
+// Sponsored tells whether the task is on, and whether the player may do one now (the interval since the last paid one has passed).
 func (s *Service) Sponsored(ctx context.Context, playerID int64) (*SponsoredStatus, error) {
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTaskBlock, ""))
 	st := &SponsoredStatus{Enabled: s.settings.BoolOr(ctx, settings.KeyAdsTaskEnabled, false) && block != "", BlockID: block}
@@ -80,13 +94,16 @@ func (s *Service) Sponsored(ctx context.Context, playerID int64) (*SponsoredStat
 	if st.Coins, err = s.settings.Int(ctx, settings.KeyAdsTaskCoins); err != nil {
 		return nil, err
 	}
-	if st.PerDay, err = s.settings.Int(ctx, settings.KeyAdsTaskPerDay); err != nil {
+	if st.IntervalMinutes, err = s.settings.Int(ctx, settings.KeyAdsTaskInterval); err != nil {
 		return nil, err
 	}
-	if st.Used, err = gameday.Get(ctx, s.pool, playerID, s.now(), sponsoredKey); err != nil {
+	last, err := s.lastPaid(ctx, s.pool, playerID)
+	if err != nil {
 		return nil, err
 	}
-	st.Left = max(st.PerDay-st.Used, 0)
+	wait := waitFor(last, time.Duration(st.IntervalMinutes)*time.Minute, s.now())
+	st.Available = wait == 0
+	st.NextInSeconds = int64((wait + time.Second - 1) / time.Second)
 	return st, nil
 }
 
@@ -103,6 +120,7 @@ func (s *Service) SponsoredDone(ctx context.Context, telegramID int64, blockID s
 	if blockID != "" && blockNumber(blockID) != blockNumber(block) {
 		return false, nil
 	}
+	interval, _ := s.settings.Int(ctx, settings.KeyAdsTaskInterval)
 	now := s.now()
 	recorded := false
 	err := db.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -110,6 +128,12 @@ func (s *Service) SponsoredDone(ctx context.Context, telegramID int64, blockID s
 		var playerID int64
 		if err := tx.QueryRow(ctx, `SELECT id FROM players WHERE telegram_id=$1 FOR UPDATE`, telegramID).Scan(&playerID); err != nil {
 			return err
+		}
+		// a completion during the wait could be claimed the moment the wait ends: do not keep it
+		if last, err := s.lastPaid(ctx, tx, playerID); err != nil {
+			return err
+		} else if waitFor(last, time.Duration(interval)*time.Minute, now) > 0 {
+			return nil
 		}
 		var open, recent int
 		if err := tx.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE created_at > $3) FROM ad_views
@@ -133,13 +157,13 @@ func (s *Service) SponsoredDone(ctx context.Context, telegramID int64, blockID s
 
 // SponsoredResult is what the claim returns.
 type SponsoredResult struct {
-	Coins      int64 `json:"coins"`
-	NewBalance int64 `json:"newBalance"`
-	Left       int64 `json:"left"`
+	Coins         int64 `json:"coins"`
+	NewBalance    int64 `json:"newBalance"`
+	NextInSeconds int64 `json:"nextInSeconds"` // when the next one can be done
 }
 
 // ClaimSponsored pays the coins for one completed sponsored task: it needs a completion recorded by Adsgram's callback
-// (otherwise AD_NOT_COMPLETED: the game asks again for a few seconds), and at most `per day` times per game day.
+// (otherwise AD_NOT_COMPLETED: the game asks again for a few seconds), and only when the interval since the last paid one has passed.
 func (s *Service) ClaimSponsored(ctx context.Context, playerID int64) (*SponsoredResult, error) {
 	st, err := s.Sponsored(ctx, playerID)
 	if err != nil {
@@ -154,19 +178,20 @@ func (s *Service) ClaimSponsored(ctx context.Context, playerID int64) (*Sponsore
 		if _, err := tx.Exec(ctx, `SELECT 1 FROM players WHERE id=$1 FOR UPDATE`, playerID); err != nil {
 			return err
 		}
-		used, ok, err := gameday.Take(ctx, tx, playerID, now, sponsoredKey, 1, st.PerDay)
+		interval := time.Duration(st.IntervalMinutes) * time.Minute
+		last, err := s.lastPaid(ctx, tx, playerID)
 		if err != nil {
 			return err
 		}
-		if !ok {
-			return apperr.AdLimit
+		if waitFor(last, interval, now) > 0 {
+			return apperr.AdTaskWait
 		}
 		var id string
 		err = tx.QueryRow(ctx, `UPDATE ad_views SET status='USED', used_at=$3, used_for='sponsored_task' WHERE id = (
 			SELECT id FROM ad_views WHERE player_id=$1 AND placement=$2 AND status='COMPLETED' AND expires_at > $3
 			ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id`, playerID, SponsoredTask, now).Scan(&id)
 		if db.IsNoRows(err) {
-			return apperr.AdNotCompleted // rolls back the day counter above as well
+			return apperr.AdNotCompleted
 		}
 		if err != nil {
 			return err
@@ -176,7 +201,7 @@ func (s *Service) ClaimSponsored(ctx context.Context, playerID int64) (*Sponsore
 		if err != nil {
 			return err
 		}
-		res = &SponsoredResult{Coins: st.Coins, NewBalance: bal, Left: st.PerDay - used}
+		res = &SponsoredResult{Coins: st.Coins, NewBalance: bal, NextInSeconds: int64(interval / time.Second)}
 		return nil
 	})
 	return res, err

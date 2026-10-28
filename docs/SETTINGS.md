@@ -22,7 +22,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.ride_free.max_per_day` | int | **required** | Free Ride runs (ad) per player per day |
 | `ads.task.block_id` | string | `` | Adsgram block id of the Task block (task-123) |
 | `ads.task.enabled` | bool | `false` | Sponsored task (Adsgram Task block) on the Tasks screen |
-| `ads.task.max_per_day` | int | `3` | Sponsored tasks that pay per player per day |
+| `ads.task.interval_minutes` | int | `480` | Sponsored task: minutes between two paid tasks of one player (480 = 3 a day) |
 | `ads.task.reward_coins` | int | `2000` | Coins for one completed sponsored task |
 | `ads.view_expiry_seconds` | int | `300` | Seconds an ad proof stays valid |
 

@@ -25,8 +25,8 @@ The change applies within about 5 minutes (the game caches the settings), or at 
 3. Admin, Settings, `ads`:
    * `ads.task.block_id`: `task-123`
    * `ads.task.reward_coins`: coins for one completed task (default 2000)
-   * `ads.task.max_per_day`: how many completions pay per player per day (default 3)
+   * `ads.task.interval_minutes`: minutes between two paid tasks of one player (default 480 = 3 a day). While the wait lasts the card and its red "!" are hidden; they come back when it is over
    * `ads.task.enabled`: ON
-4. The card appears at the end of the **Main** tab of Tasks. The game pays only after Adsgram has called the Reward URL: the "reward" event in the browser alone gets nothing. A completion that is not claimed (limit reached, app closed) expires after 6 hours.
+4. The card is the first one on the **Main** tab of Tasks. The game pays only after Adsgram has called the Reward URL: the "reward" event in the browser alone gets nothing. A completion that is not claimed (app closed before claiming) expires after 6 hours.
 
 Checking it: `grep webhooks/adsgram-task /var/log/nginx/access.log` shows Adsgram's calls (12 bytes in the log means accepted, 13 means ignored). Ledger reason: `sponsored_task`. In Adsgram's debug/test mode no Reward URL call is sent, so a test task shows but pays nothing: that is expected.
