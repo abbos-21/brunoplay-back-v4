@@ -32,7 +32,9 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/friends/link` | player |
 | GET | `/api/friends/rewards` | player |
 | GET | `/api/friends/stats` | player |
+| GET | `/api/gift-images/{key}` | player |
 | GET | `/api/gifts` | player |
+| GET | `/api/gifts/art` | player |
 | POST | `/api/gifts/{id}/claim` | player |
 | POST | `/api/gifts/{id}/sell` | player |
 | GET | `/api/levels` | player |
@@ -100,6 +102,10 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | PUT | `/api/admin/combo/patterns/{day}` | admin |
 | GET | `/api/admin/dashboard` | admin |
 | GET | `/api/admin/games/guard` | admin |
+| GET | `/api/admin/gifts/catalog` | admin |
+| PUT | `/api/admin/gifts/catalog` | admin |
+| DELETE | `/api/admin/gifts/catalog/{key}/image` | admin |
+| PUT | `/api/admin/gifts/catalog/{key}/image` | admin |
 | GET | `/api/admin/gifts/claims` | admin |
 | POST | `/api/admin/gifts/{id}/deliver` | admin |
 | POST | `/api/admin/gifts/{id}/reject` | admin |

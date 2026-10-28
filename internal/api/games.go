@@ -18,6 +18,7 @@ func (d *Deps) gameRoutes(r chi.Router) {
 		r.Get("/chest", httpx.Wrap(d.chestState))
 		r.Get("/ride/me", httpx.Wrap(d.rideMe))
 		r.Get("/gifts", httpx.Wrap(d.giftList))
+		r.Get("/gifts/art", httpx.Wrap(d.giftArtList))
 
 		r.Group(func(r chi.Router) {
 			r.Use(d.MW.Limit(d.MoneyLimit, "money"), d.MW.Idempotency)
@@ -197,6 +198,7 @@ func (d *Deps) gameAdminRoutes(r chi.Router) {
 	r.With(d.adminAuth("gifts.write")).Post("/gifts/{id}/deliver", httpx.Wrap(d.adminDeliver))
 	r.With(d.adminAuth("gifts.write")).Post("/gifts/{id}/reject", httpx.Wrap(d.adminGiftReject))
 	r.With(d.adminAuth("dashboard.read")).Get("/games/guard", httpx.Wrap(d.adminGuard))
+	d.giftCatalogRoutes(r)
 }
 
 func (d *Deps) adminClaims(w http.ResponseWriter, r *http.Request) error {

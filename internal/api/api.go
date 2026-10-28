@@ -174,6 +174,7 @@ func (d *Deps) Routes() chi.Router {
 		r.Get("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
 		r.Post("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
 		r.Post("/webhooks/telegram", httpx.Wrap(d.telegramWebhook))
+		r.Get("/gift-images/{key}", httpx.Wrap(d.giftImage))
 		d.playerRoutes(r)
 		d.adminRoutes(r)
 	})
