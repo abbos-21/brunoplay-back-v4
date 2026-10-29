@@ -1,19 +1,22 @@
 package api_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"brunoplay/internal/settings"
 	"brunoplay/internal/telegram"
+	"brunoplay/internal/ton"
 )
 
-// A friend's Telegram Stars top-up pays the inviter a percent in stars. No level is needed, the top-up also makes the friend count,
+// A friend's top-up (Telegram Stars or TON) pays the inviter a percent in stars. No level is needed, the top-up also makes the friend count,
 // a refund takes the share back, and a blocked inviter gets nothing.
 func TestReferralTopupBonus(t *testing.T) {
 	e := newEnv(t)
 	e.gameConfig()
-	e.moneyConfig()
+	_, chain := e.moneyConfig()
 	e.setSetting(settings.KeyRefJoinBonus, 0)
 	inviter := e.login(5101, "en", "")
 	friend := e.login(5102, "en", fmt.Sprintf("ref_%d", inviter.ID))
@@ -78,11 +81,24 @@ func TestReferralTopupBonus(t *testing.T) {
 		t.Fatalf("stats after the refund: %v", st)
 	}
 
+	// a TON top-up pays too, from the pack (not from the friend's own TON bonus): 10% of 500 = 50
+	tonFriend := e.login(5104, "en", fmt.Sprintf("ref_%d", inviter.ID))
+	o := e.tonOrder(tonFriend, 500)
+	chain.Txs = []ton.Tx{{Hash: "h-ref", Value: int64(o["amountNano"].(float64)), Comment: o["comment"].(string), Time: e.now.Add(time.Second)}}
+	e.now = e.now.Add(time.Minute)
+	if n, err := e.d.Topup.PollTon(context.Background()); err != nil || n != 1 {
+		t.Fatalf("ton credit: %d %v", n, err)
+	}
+	if e.stars(inviter) != 50 {
+		t.Fatalf("ton top-up bonus: %d", e.stars(inviter))
+	}
+
 	// a blocked inviter gets nothing (and it is not paid later)
 	e.exec(`UPDATE players SET is_blocked=TRUE WHERE id=$1`, inviter.ID)
+	before := e.stars(inviter)
 	other := e.login(5103, "en", fmt.Sprintf("ref_%d", inviter.ID))
 	pay(other, 5103, 200)
-	if e.stars(inviter) != 0 {
+	if e.stars(inviter) != before {
 		t.Fatalf("blocked inviter was paid: %d", e.stars(inviter))
 	}
 }

@@ -184,10 +184,11 @@ func (s *Service) OnCollected(ctx context.Context, tx pgx.Tx, ev fishing.Collect
 	return nil
 }
 
-// OnTopupPaid pays the inviter a share (in stars, rounded down) of a friend's Telegram Stars top-up. It needs no level: the first
+// OnTopupPaid pays the inviter a share (in stars, rounded down) of a friend's top-up (Telegram Stars or TON; the share is taken from
+// the pack, not from the top-up bonus). It needs no level: the first
 // top-up also makes the friend count. A blocked inviter, or one whose rewards are held, gets nothing (never paid later).
 func (s *Service) OnTopupPaid(ctx context.Context, tx pgx.Tx, ev topup.PaidEvent) error {
-	if ev.Method != topup.MethodTG || ev.Stars <= 0 {
+	if ev.Stars <= 0 {
 		return nil
 	}
 	pct, err := s.settings.Float(ctx, settings.KeyRefTopupPct)
