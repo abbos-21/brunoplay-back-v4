@@ -122,6 +122,9 @@ func NewDeps(cfg config.Config, pool *pgxpool.Pool) *Deps {
 	// friends: a friend counts at level 2, the inviter earns on level-ups and on the friend's collects
 	d.Shop.OnLevelUp = append(d.Shop.OnLevelUp, d.Referrals.OnLevelUp)
 	d.Fishing.OnCollected = append(d.Fishing.OnCollected, d.Referrals.OnCollected)
+	// ... and on a friend's Telegram Stars top-up (and its refund), with no level needed
+	d.Topup.OnPaid = append(d.Topup.OnPaid, d.Referrals.OnTopupPaid)
+	d.Topup.OnRefunded = append(d.Topup.OnRefunded, d.Referrals.OnTopupRefunded)
 	d.Shop.Evaluators["task_done"] = func(ctx context.Context, q db.Querier, p *players.Player, v int64) (bool, error) {
 		return d.Tasks.Done(ctx, q, p.ID, v)
 	}

@@ -5,6 +5,7 @@ package referrals
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"brunoplay/internal/players"
 	"brunoplay/internal/settings"
 	"brunoplay/internal/shop"
+	"brunoplay/internal/topup"
 )
 
 type Service struct {
@@ -29,6 +31,9 @@ type Service struct {
 	// OnFriendCounted / OnReward run inside the transaction (bot notifications).
 	OnFriendCounted []func(ctx context.Context, tx pgx.Tx, inviterID, friendID int64) error
 	OnReward        []func(ctx context.Context, tx pgx.Tx, inviterID, friendID int64, kind string, level int, coins int64) error
+	// OnFriendInvested runs after a friend's Stars top-up: stars is what the inviter got (0 = nothing), newlyCounted tells that the
+	// top-up made the friend count.
+	OnFriendInvested []func(ctx context.Context, tx pgx.Tx, inviterID, friendID, stars int64, newlyCounted bool) error
 }
 
 func New(pool *pgxpool.Pool, st *settings.Service, botName, appShortName string) *Service {
@@ -73,16 +78,17 @@ func (s *Service) OnLevelUp(ctx context.Context, tx pgx.Tx, ev shop.LevelUpEvent
 		if _, err := tx.Exec(ctx, `UPDATE players SET referral_counted=TRUE, referral_counted_at=$2 WHERE id=$1`, ev.PlayerID, s.now()); err != nil {
 			return err
 		}
-		if bonus > 0 {
-			if _, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: ev.PlayerID, Currency: ledger.Coin, Amount: bonus, Reason: ledger.ReasonFriendBonus,
-				RefType: "referral", RefID: ledger.RefID(*inviter), IdemKey: fmt.Sprintf("friendbonus:%d", ev.PlayerID), Earned: true}); err != nil && err != ledger.ErrDuplicate {
-				return err
-			}
-		}
 		for _, h := range s.OnFriendCounted {
 			if err := h(ctx, tx, *inviter, ev.PlayerID); err != nil {
 				return err
 			}
+		}
+	}
+	// the friend's own join bonus belongs to level 2 even if the friend was counted earlier by a top-up (the ledger key keeps it single)
+	if bonus > 0 {
+		if _, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: ev.PlayerID, Currency: ledger.Coin, Amount: bonus, Reason: ledger.ReasonFriendBonus,
+			RefType: "referral", RefID: ledger.RefID(*inviter), IdemKey: fmt.Sprintf("friendbonus:%d", ev.PlayerID), Earned: true}); err != nil && err != ledger.ErrDuplicate {
+			return err
 		}
 	}
 	if inviterBlocked || inviterHeld {
@@ -178,6 +184,93 @@ func (s *Service) OnCollected(ctx context.Context, tx pgx.Tx, ev fishing.Collect
 	return nil
 }
 
+// OnTopupPaid pays the inviter a share (in stars, rounded down) of a friend's Telegram Stars top-up. It needs no level: the first
+// top-up also makes the friend count. A blocked inviter, or one whose rewards are held, gets nothing (never paid later).
+func (s *Service) OnTopupPaid(ctx context.Context, tx pgx.Tx, ev topup.PaidEvent) error {
+	if ev.Method != topup.MethodTG || ev.Stars <= 0 {
+		return nil
+	}
+	pct, err := s.settings.Float(ctx, settings.KeyRefTopupPct)
+	if err != nil || pct <= 0 {
+		return nil
+	}
+	var inviter *int64
+	var counted bool
+	if err := tx.QueryRow(ctx, `SELECT referred_by, referral_counted FROM players WHERE id=$1 FOR UPDATE`, ev.PlayerID).Scan(&inviter, &counted); err != nil {
+		return err
+	}
+	if inviter == nil {
+		return nil
+	}
+	if !counted {
+		if _, err := tx.Exec(ctx, `UPDATE players SET referral_counted=TRUE, referral_counted_at=$2 WHERE id=$1`, ev.PlayerID, s.now()); err != nil {
+			return err
+		}
+	}
+	var blocked, held bool
+	if err := tx.QueryRow(ctx, `SELECT is_blocked, hold_rewards FROM players WHERE id=$1`, *inviter).Scan(&blocked, &held); err != nil {
+		return err
+	}
+	var paid int64
+	if !blocked && !held {
+		share := int64(math.Floor(float64(ev.Stars) * pct / 100))
+		if share > 0 {
+			ref := "topup:" + ev.OrderID
+			if _, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: *inviter, Currency: ledger.Star, Amount: share, Reason: ledger.ReasonReferralTopup,
+				RefType: "referral", RefID: ledger.RefID(ev.PlayerID), IdemKey: "reftopup:" + ev.OrderID, Meta: map[string]any{"friend": ev.PlayerID, "order": ev.OrderID}}); err != nil {
+				if err != ledger.ErrDuplicate {
+					return err
+				}
+			} else {
+				paid = share
+				if _, err := tx.Exec(ctx, `INSERT INTO referral_payments (inviter_id, friend_id, kind, coins, stars, ref) VALUES ($1,$2,'topup',0,$3,$4) ON CONFLICT (ref) DO NOTHING`,
+					*inviter, ev.PlayerID, share, ref); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	for _, h := range s.OnFriendInvested {
+		if err := h(ctx, tx, *inviter, ev.PlayerID, paid, !counted); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// OnTopupRefunded takes the inviter's share of a refunded top-up back, as far as the inviter still has the stars.
+func (s *Service) OnTopupRefunded(ctx context.Context, tx pgx.Tx, playerID int64, orderID string, _ int64) error {
+	var inviter, stars int64
+	err := tx.QueryRow(ctx, `SELECT inviter_id, stars FROM referral_payments WHERE ref=$1 AND kind='topup'`, "topup:"+orderID).Scan(&inviter, &stars)
+	if err != nil {
+		if db.IsNoRows(err) {
+			return nil // no bonus was paid for this order
+		}
+		return err
+	}
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM players WHERE id=$1 FOR UPDATE`, inviter); err != nil {
+		return err
+	}
+	_, have, err := ledger.Balances(ctx, tx, inviter)
+	if err != nil {
+		return err
+	}
+	back := min(stars, have)
+	if back <= 0 {
+		return nil
+	}
+	if _, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: inviter, Currency: ledger.Star, Amount: -back, Reason: ledger.ReasonReferralTopupBack,
+		RefType: "referral", RefID: ledger.RefID(playerID), IdemKey: "reftopupback:" + orderID, Meta: map[string]any{"friend": playerID, "order": orderID}}); err != nil {
+		if err == ledger.ErrDuplicate {
+			return nil
+		}
+		return err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO referral_payments (inviter_id, friend_id, kind, coins, stars, ref) VALUES ($1,$2,'topup',0,$3,$4) ON CONFLICT (ref) DO NOTHING`,
+		inviter, playerID, -back, "topuprefund:"+orderID)
+	return err
+}
+
 // ---- what the Friends screen reads
 
 type Friend struct {
@@ -187,12 +280,16 @@ type Friend struct {
 	Level     int       `json:"level"`
 	Counted   bool      `json:"counted"`
 	CreatedAt time.Time `json:"createdAt"`
+	// TopupStars is what this friend's top-ups earned the inviter so far (refunds taken off)
+	TopupStars int64 `json:"topupStars"`
 }
 
 type Stats struct {
 	TotalReferrals   int64 `json:"totalReferrals"`   // counted friends
 	PendingReferrals int64 `json:"pendingReferrals"` // joined, not at level 2 yet
 	ReferralEarnings int64 `json:"referralEarnings"`
+	// TopupStars: stars earned from the friends' top-ups (refunds taken off)
+	TopupStars int64 `json:"topupStars"`
 }
 
 func (s *Service) Stats(ctx context.Context, playerID int64) (*Stats, error) {
@@ -203,7 +300,7 @@ func (s *Service) Stats(ctx context.Context, playerID int64) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = s.pool.QueryRow(ctx, `SELECT COALESCE(sum(coins),0) FROM referral_payments WHERE inviter_id=$1`, playerID).Scan(&st.ReferralEarnings)
+	err = s.pool.QueryRow(ctx, `SELECT COALESCE(sum(coins),0), COALESCE(sum(stars),0) FROM referral_payments WHERE inviter_id=$1`, playerID).Scan(&st.ReferralEarnings, &st.TopupStars)
 	return &st, err
 }
 
@@ -218,7 +315,9 @@ func (s *Service) Friends(ctx context.Context, playerID int64, page, perPage int
 	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM players WHERE referred_by=$1 AND deleted_at IS NULL`, playerID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, username, first_name, level, referral_counted, created_at FROM players
+	rows, err := s.pool.Query(ctx, `SELECT id, username, first_name, level, referral_counted, created_at,
+		(SELECT COALESCE(sum(stars),0) FROM referral_payments rp WHERE rp.inviter_id=$1 AND rp.friend_id=players.id AND rp.kind='topup')
+		FROM players
 		WHERE referred_by=$1 AND deleted_at IS NULL ORDER BY referral_counted DESC, level DESC, id DESC LIMIT $2 OFFSET $3`, playerID, perPage, (page-1)*perPage)
 	if err != nil {
 		return nil, 0, err
@@ -227,7 +326,7 @@ func (s *Service) Friends(ctx context.Context, playerID int64, page, perPage int
 	out := []Friend{}
 	for rows.Next() {
 		var f Friend
-		if err := rows.Scan(&f.ID, &f.Username, &f.FirstName, &f.Level, &f.Counted, &f.CreatedAt); err != nil {
+		if err := rows.Scan(&f.ID, &f.Username, &f.FirstName, &f.Level, &f.Counted, &f.CreatedAt, &f.TopupStars); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, f)

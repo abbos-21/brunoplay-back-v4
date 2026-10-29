@@ -74,6 +74,7 @@ func init() {
 
 	def(Type{"friend_joined", CatFriends, 0, "/friends", "👥 {name} reached level 2 and is now your friend!", "👥 {name} достиг 2 уровня и теперь ваш друг!", "Friends", "Друзья"})
 	def(Type{"friend_level_reward", CatFriends, 0, "/friends", "🎁 Your friend {name} reached level {level}: +{coins} coins.", "🎁 Ваш друг {name} достиг {level} уровня: +{coins} монет.", "Friends", "Друзья"})
+	def(Type{"friend_topup_bonus", CatFriends, 0, "/friends", "⭐ Your friend {name} topped up the game: +{stars} stars for you.", "⭐ Ваш друг {name} пополнил игру: +{stars} звёзд вам.", "Friends", "Друзья"})
 
 	def(Type{"tournament_start", CatGames, 0, "/games", "🏁 Tournament «{name}» has started! Join and win prizes.", "🏁 Турнир «{name}» начался! Участвуйте и выигрывайте призы.", "Games", "Игры"})
 	def(Type{"tournament_ending", CatGames, 0, "/games", "⏰ Tournament «{name}» ends soon. Your place: {rank}.", "⏰ Турнир «{name}» скоро закончится. Ваше место: {rank}.", "Games", "Игры"})

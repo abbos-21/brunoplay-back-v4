@@ -68,6 +68,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `referral.level_rewards` | json | **required** | Coins the inviter gets when a friend reaches a level: {"2":200,...} |
 | `referral.mining_cap_per_friend` | int | `0` | Most coins an inviter can earn from one friend's mining |
 | `referral.mining_percent` | float | `0` | Percent of a friend's collected coins paid to the inviter |
+| `referral.topup_percent` | float | `10` | Percent of a friend's Telegram Stars top-up (in stars) paid to the inviter, rounded down; paid on every top-up, no level needed (0 = off) |
 
 ## games
 

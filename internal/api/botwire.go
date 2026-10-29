@@ -103,6 +103,18 @@ func (d *Deps) wireBot() {
 		}
 		return n.Send(ctx, tx, inviterID, "friend_joined", map[string]any{"name": d.displayName(ctx, tx, friendID)}, fmt.Sprintf("friendjoined:%d:%d", inviterID, friendID))
 	})
+	d.Referrals.OnFriendInvested = append(d.Referrals.OnFriendInvested, func(ctx context.Context, tx pgx.Tx, inviterID, friendID, stars int64, newlyCounted bool) error {
+		if newlyCounted {
+			if err := d.Tournaments.OnFriendCounted(ctx, tx, inviterID); err != nil {
+				return err
+			}
+		}
+		if stars <= 0 {
+			return nil
+		}
+		return n.Send(ctx, tx, inviterID, "friend_topup_bonus", map[string]any{"name": d.displayName(ctx, tx, friendID), "stars": stars},
+			fmt.Sprintf("friendtopup:%d:%d:%d", inviterID, friendID, d.now().UnixNano()))
+	})
 	d.Referrals.OnReward = append(d.Referrals.OnReward, func(ctx context.Context, tx pgx.Tx, inviterID, friendID int64, kind string, level int, coins int64) error {
 		if kind != "level" {
 			return nil

@@ -119,6 +119,7 @@ const (
 	KeyRefMiningPct    = "referral.mining_percent"
 	KeyRefMiningCap    = "referral.mining_cap_per_friend"
 	KeyRefJoinBonus    = "referral.default_join_bonus"
+	KeyRefTopupPct     = "referral.topup_percent"
 	KeyTaskLinkSeconds = "tasks.link_min_seconds"
 
 	// notifications
@@ -358,6 +359,7 @@ func Registry() []Def {
 		fl(KeyRefMiningPct, "friends", "Percent of a friend's collected coins paid to the inviter", 0, 0, 100),
 		i(KeyRefMiningCap, "friends", "Most coins an inviter can earn from one friend's mining", 0, 0, big),
 		i(KeyRefJoinBonus, "friends", "Default friend join bonus (coins), paid at friend level 2", 0, 0, big),
+		fl(KeyRefTopupPct, "friends", "Percent of a friend's Telegram Stars top-up (in stars) paid to the inviter, rounded down; paid on every top-up, no level needed (0 = off)", 10, 0, 100),
 		i(KeyTaskLinkSeconds, "tasks", "Seconds before a link task can complete", 5, 0, 600),
 
 		i(KeyNotifDailyCap, "notifications", "Most bot messages per player per day (except payments)", 6, 1, 100),
