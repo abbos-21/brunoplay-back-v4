@@ -32,8 +32,10 @@ type PopupStatus struct {
 	ZoneID          string `json:"zoneId"`
 	Coins           int64  `json:"coins"`
 	IntervalMinutes int64  `json:"intervalMinutes"`
-	Available       bool   `json:"available"`
-	NextInSeconds   int64  `json:"nextInSeconds"`
+	// WaitSeconds is how long after Monetag confirms the open the coins can be claimed (the game shows it as a countdown)
+	WaitSeconds   int64 `json:"waitSeconds"`
+	Available     bool  `json:"available"`
+	NextInSeconds int64 `json:"nextInSeconds"`
 }
 
 // PopupProof is the proof the game holds until the tap.
@@ -70,6 +72,7 @@ func (s *Service) Popup(ctx context.Context, playerID int64) (*PopupStatus, erro
 	if st.IntervalMinutes, err = s.settings.Int(ctx, settings.KeyAdsMonetagTaskInterval); err != nil {
 		return nil, err
 	}
+	st.WaitSeconds = s.waitSeconds(ctx, "monetag")
 	last, err := s.lastPaid(ctx, s.pool, playerID, PopupTask)
 	if err != nil {
 		return nil, err

@@ -47,7 +47,7 @@ func TestMonetagPopupTask(t *testing.T) {
 	// on: the admin's coins and interval reach the game
 	save(true, map[string]any{settings.KeyAdsMonetagTask: true, settings.KeyAdsMonetagTaskCoins: 500, settings.KeyAdsMonetagTaskInterval: 60})
 	st := status()
-	if st["enabled"] != true || st["available"] != true || st["coins"] != float64(500) || st["zoneId"] != "12144526" || st["intervalMinutes"] != float64(60) {
+	if st["enabled"] != true || st["available"] != true || st["coins"] != float64(500) || st["waitSeconds"] != float64(20) || st["zoneId"] != "12144526" || st["intervalMinutes"] != float64(60) {
 		t.Fatalf("on: %v", st)
 	}
 
