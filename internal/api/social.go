@@ -242,7 +242,7 @@ func (d *Deps) friends(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	httpx.JSON(w, 200, map[string]any{"stats": st, "friends": list, "total": total, "page": page, "rewards": d.Referrals.Rewards(r.Context()),
+	httpx.JSON(w, 200, map[string]any{"stats": st, "friends": list, "total": total, "page": page, "rewards": d.Referrals.Rewards(r.Context()), "topupPercent": d.Referrals.TopupPercent(r.Context()),
 		"links": d.Referrals.Links(p.ID)})
 	return nil
 }

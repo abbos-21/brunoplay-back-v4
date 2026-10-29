@@ -351,6 +351,15 @@ func (s *Service) Rewards(ctx context.Context) []Tier {
 	return out
 }
 
+// TopupPercent is the share (percent) of a friend's Stars top-up the inviter earns in stars (0 = off).
+func (s *Service) TopupPercent(ctx context.Context) float64 {
+	pct, err := s.settings.Float(ctx, settings.KeyRefTopupPct)
+	if err != nil || pct < 0 {
+		return 0
+	}
+	return pct
+}
+
 type Links struct {
 	MiniApp string `json:"inviteLink"`
 	Bot     string `json:"botLink"`
