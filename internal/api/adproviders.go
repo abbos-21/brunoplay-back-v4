@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -58,6 +59,37 @@ func (d *Deps) tadsWebhook(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 	ok, err := d.Ads.CompleteBy(r.Context(), tg, "tads")
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, map[string]bool{"ok": ok})
+	return nil
+}
+
+// ---- Monetag postback
+
+var ymidRe = regexp.MustCompile(`^[0-9a-f]{1,64}$`)
+
+// monetagWebhook is Monetag's postback (GET), sent when the ad starts to show and again for a click or a retry:
+// /api/webhooks/monetag?secret=..&ymid=<our proof id>&event_type=impression&reward_event_type=valued&zone_id=..&telegram_id=..
+// Only "valued" events count. The ymid names the exact proof, so a repeat finds it already completed and is answered 200 anyway
+// (Monetag retries anything that is not 2xx for about 38 hours).
+func (d *Deps) monetagWebhook(w http.ResponseWriter, r *http.Request) error {
+	q := r.URL.Query()
+	if !d.Ads.SecretOK(q.Get("secret")) {
+		return apperr.Unauthorized
+	}
+	no := func() error { httpx.JSON(w, 200, map[string]bool{"ok": false}); return nil }
+	ymid := strings.TrimSpace(q.Get("ymid"))
+	if !ymidRe.MatchString(ymid) || q.Get("reward_event_type") != "valued" {
+		return no()
+	}
+	// a postback of another zone (not the one in the admin settings) is not ours to pay
+	if want := strings.TrimSpace(d.Settings.StrOr(r.Context(), settings.KeyAdsMonetagZone, "")); want != "" && q.Get("zone_id") != "" && strings.TrimSpace(q.Get("zone_id")) != want {
+		return no()
+	}
+	tg, _ := strconv.ParseInt(strings.TrimSpace(q.Get("telegram_id")), 10, 64) // empty when Telegram did not tell: not checked then
+	ok, err := d.Ads.CompleteView(r.Context(), ymid, max(tg, 0), "monetag")
 	if err != nil {
 		return err
 	}

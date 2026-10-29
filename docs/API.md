@@ -69,6 +69,7 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/webhooks/adsgram` | webhook (secret) |
 | GET | `/api/webhooks/adsgram-task` | webhook (secret) |
 | POST | `/api/webhooks/adsgram-task` | webhook (secret) |
+| GET | `/api/webhooks/monetag` | webhook (secret) |
 | GET | `/api/webhooks/tads` | webhook (secret) |
 | POST | `/api/webhooks/tads` | webhook (secret) |
 | POST | `/api/webhooks/telegram` | webhook (secret) |

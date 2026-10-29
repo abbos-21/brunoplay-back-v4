@@ -189,6 +189,29 @@ func (s *Service) CompleteBy(ctx context.Context, telegramID int64, provider str
 	return s.complete(ctx, telegramID, "", provider)
 }
 
+// CompleteView is the reward callback of a provider that echoes the id we gave the ad (Monetag's ymid = the proof id): that
+// exact proof becomes COMPLETED, if it is still open, offered this provider and belongs to that Telegram user (0 = not told).
+func (s *Service) CompleteView(ctx context.Context, viewID string, telegramID int64, provider string) (bool, error) {
+	now := s.now()
+	var playerID int64
+	err := db.WithTx(ctx, s.pool, func(tx pgxTx) error {
+		err := tx.QueryRow(ctx, `UPDATE ad_views v SET status='COMPLETED', completed_at=$2,
+			usable_at = CASE WHEN $5::bigint > 0 THEN $2::timestamptz + $5::bigint * interval '1 second' END
+			FROM players p WHERE v.id=$1 AND p.id=v.player_id AND ($3::bigint = 0 OR p.telegram_id=$3)
+			AND v.status='PENDING' AND v.expires_at > $2 AND $4 = ANY(string_to_array(v.providers, ','))
+			RETURNING v.player_id`, viewID, now, telegramID, provider, s.waitSeconds(ctx, provider)).Scan(&playerID)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `DELETE FROM ad_failures WHERE player_id=$1`, playerID)
+		return err
+	})
+	if db.IsNoRows(err) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 func (s *Service) complete(ctx context.Context, telegramID int64, blockID, provider string) (bool, error) {
 	now := s.now()
 	var playerID int64

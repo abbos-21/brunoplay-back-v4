@@ -36,6 +36,7 @@ type ProviderRef struct {
 	ID       string `json:"id"`
 	BlockID  string `json:"blockId,omitempty"`  // Adsgram
 	WidgetID string `json:"widgetId,omitempty"` // TADS
+	ZoneID   string `json:"zoneId,omitempty"`   // Monetag (the app also uses the proof id as the ymid of the ad)
 	Debug    bool   `json:"debug,omitempty"`
 	// WaitSeconds: the provider reports an ad when it STARTS, not when it ends. The server accepts the proof this many seconds after
 	// the report, and the app waits as long before it goes on.
@@ -96,6 +97,23 @@ var providers = []providerDef{
 		},
 		Webhooks: func(u string) []Webhook {
 			return []Webhook{{Label: "Widget webhook (method POST)", URL: u + "/api/webhooks/tads?secret=YOUR_SECRET", Note: "YOUR_SECRET is ADSGRAM_WEBHOOK_SECRET from the server's .env (the same secret is used)"}}
+		},
+	},
+	{
+		ID: "monetag", Name: "Monetag", Formats: []Format{FormatRewarded},
+		Fields: []Field{
+			{Key: settings.KeyAdsMonetagZone, Label: "Main zone id", Help: "The number of the main SDK zone of the app in the Monetag dashboard (Telegram Mini Apps), for example 12144526.", Kind: "string"},
+			{Key: settings.KeyAdsMonetagWait, Label: "Wait for the ad to end (seconds)", Kind: "number",
+				Help: "Monetag reports an ad when it STARTS, not when it ends. The game stays on hold this many seconds after the ad starts, and the server refuses the action before that. Put the length of a Monetag ad here. 0 = no wait."},
+		},
+		WaitKey: settings.KeyAdsMonetagWait,
+		Ref: func(ctx context.Context, s *Service, placement string) (ProviderRef, bool) {
+			z := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsMonetagZone, ""))
+			wait, _ := s.settings.Int(ctx, settings.KeyAdsMonetagWait)
+			return ProviderRef{ID: "monetag", ZoneID: z, WaitSeconds: int(wait)}, widgetRe.MatchString(z)
+		},
+		Webhooks: func(u string) []Webhook {
+			return []Webhook{{Label: "Postback URL (Monetag → the app's Postback page)", URL: u + "/api/webhooks/monetag?secret=YOUR_SECRET&ymid={ymid}&zone_id={zone_id}&event_type={event_type}&reward_event_type={reward_event_type}&telegram_id={telegram_id}", Note: "YOUR_SECRET is ADSGRAM_WEBHOOK_SECRET from the server's .env (the same secret is used). Type the secret yourself, never share it."}}
 		},
 	},
 }
@@ -256,6 +274,8 @@ func providerHint(id string) string {
 		return "enter the Adsgram block ids in Settings → ads.block_ids."
 	case "tads":
 		return "enter the widget id below."
+	case "monetag":
+		return "enter the main zone id below."
 	}
 	return "fill in its settings."
 }
@@ -293,8 +313,8 @@ func (s *Service) SaveProviders(ctx context.Context, list []Entry, fields map[st
 			if !isStr {
 				return apperr.AdminRefused.With("why", f.Label+" must be text")
 			}
-			if (k == settings.KeyAdsTadsWidget || k == settings.KeyAdsTadsTGB) && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
-				return apperr.AdminRefused.With("why", "A TADS widget id is a number (for example 12941)")
+			if (k == settings.KeyAdsTadsWidget || k == settings.KeyAdsTadsTGB || k == settings.KeyAdsMonetagZone) && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
+				return apperr.AdminRefused.With("why", f.Label+" is a number (for example 12941)")
 			}
 			fields[k] = strings.TrimSpace(str)
 		}

@@ -17,8 +17,10 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.interstitial.first_after_seconds` | int | `120` | Interstitial: no ad in the first seconds after the app is opened |
 | `ads.interstitial.interval_seconds` | int | `180` | Interstitial: minimum seconds between two ads for one player |
 | `ads.max_failed_loads` | int | `3` | Failed ad loads in a row after which the action is allowed without an ad |
+| `ads.monetag.wait_seconds` | int | `10` | Monetag: seconds after Monetag reports the ad before the action may go ahead (it reports when the ad starts, so set the ad's length) |
+| `ads.monetag.zone_id` | string | `` | Monetag main zone id (a number from the Monetag dashboard) |
 | `ads.placements_enabled` | json | `map[BONUS_COINS:true COLLECT:true COMBO_EXTRA:true DOUBLE_COMBO:true DOUBLE_STREAK:true FISHING_START:true RIDE_FREE:true TASK_ADS:true]` | Placement switches |
-| `ads.providers` | json | `[map[enabled:true id:adsgram] map[enabled:false id:tads]]` | Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page) |
+| `ads.providers` | json | `[map[enabled:true id:adsgram] map[enabled:false id:tads] map[enabled:false id:monetag]]` | Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page) |
 | `ads.required` | bool | `true` | Ads are required for fishing start and collect (keep ON in production) |
 | `ads.ride_free.max_per_day` | int | **required** | Free Ride runs (ad) per player per day |
 | `ads.tads.debug` | bool | `false` | TADS debug mode (test ads; keep OFF in production) |
