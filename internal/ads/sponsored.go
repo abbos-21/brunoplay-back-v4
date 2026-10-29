@@ -30,7 +30,7 @@ const (
 type InterstitialConfig struct {
 	Enabled bool   `json:"enabled"`
 	BlockID string `json:"blockId"` // the Adsgram block (kept for older apps); Providers is the full list
-	// Providers is the priority list: the app tries them in order and moves on when one has no ad.
+	// Providers is every provider that is switched on, in priority order: the app shows an ad of each one, one after the other.
 	Providers         []ProviderRef `json:"providers"`
 	IntervalSeconds   int64         `json:"intervalSeconds"`
 	FirstAfterSeconds int64         `json:"firstAfterSeconds"`
@@ -87,8 +87,8 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	return c, nil
 }
 
-// interstitialChain lists, in priority order, the providers that can show an interstitial now: Adsgram with its interstitial block,
-// Monetag with its zone (the others do not serve the format).
+// interstitialChain lists, in priority order, the providers that show an interstitial now: Adsgram with its interstitial block,
+// Monetag with its zone (the others do not serve the format). Unlike rewarded ads, ALL of them are shown, one after the other.
 func (s *Service) interstitialChain(ctx context.Context, adsgramBlock string) []ProviderRef {
 	out := []ProviderRef{}
 	for _, e := range s.entries(ctx) {
