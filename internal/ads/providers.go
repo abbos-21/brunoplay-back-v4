@@ -10,8 +10,10 @@ import (
 	"brunoplay/internal/settings"
 )
 
-// Ad providers. Adding a new one means adding one entry to `providers` below (plus its player in the app); the admin Ads page,
-// the on/off switches and the priority list work for every entry without more changes.
+// Ad providers. Adding a new one means adding one entry to `providers` below (plus its players in the app: `players` for rewarded ads
+// and `interstitialPlayers` for interstitials); the admin Ads page, the on/off switches and the priority list work for every entry
+// without more changes. Rewarded ads use the FIRST provider that has an ad (the next one is the fallback); interstitials are shown by
+// ALL the providers that are switched on, one after the other in the same order.
 
 // Format is a kind of ad a provider can serve.
 type Format string
@@ -53,6 +55,8 @@ type providerDef struct {
 	WaitKey string
 	// Ref returns what the app needs for a placement, or false when the provider is not set up (no block id, no widget id...).
 	Ref func(ctx context.Context, s *Service, placement string) (ProviderRef, bool)
+	// InterstitialRef is the same for the interstitial format (providers that serve it). Empty: Ref is used with no placement.
+	InterstitialRef func(ctx context.Context, s *Service) (ProviderRef, bool)
 	// Webhooks lists the addresses the admin must give to the provider's dashboard (publicURL has no trailing slash).
 	Webhooks func(publicURL string) []Webhook
 }
@@ -67,6 +71,10 @@ type Webhook struct {
 var providers = []providerDef{
 	{
 		ID: "adsgram", Name: "Adsgram", Formats: []Format{FormatRewarded, FormatInterstitial, FormatTask}, DefaultOn: true,
+		InterstitialRef: func(ctx context.Context, s *Service) (ProviderRef, bool) {
+			block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsInterBlock, ""))
+			return ProviderRef{ID: "adsgram", BlockID: block}, block != ""
+		},
 		Ref: func(ctx context.Context, s *Service, placement string) (ProviderRef, bool) {
 			block, err := s.blockID(ctx, placement)
 			block = strings.TrimSpace(block)

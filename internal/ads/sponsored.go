@@ -67,7 +67,7 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	c := &Config{}
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsInterBlock, ""))
 	c.Interstitial.BlockID = block
-	c.Interstitial.Providers = s.interstitialChain(ctx, block)
+	c.Interstitial.Providers = s.interstitialChain(ctx)
 	c.Interstitial.Enabled = s.settings.BoolOr(ctx, settings.KeyAdsInterEnabled, false) && len(c.Interstitial.Providers) > 0
 	if c.Interstitial.Enabled && s.PlayerAdsOff(ctx, s.pool, playerID) {
 		c.Interstitial.Enabled = false
@@ -87,25 +87,24 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	return c, nil
 }
 
-// interstitialChain lists, in priority order, the providers that show an interstitial now: Adsgram with its interstitial block,
-// Monetag with its zone (the others do not serve the format). Unlike rewarded ads, ALL of them are shown, one after the other.
-func (s *Service) interstitialChain(ctx context.Context, adsgramBlock string) []ProviderRef {
+// interstitialChain lists, in priority order, the providers that show an interstitial now (switched on, serve the format, set up).
+// Unlike rewarded ads, ALL of them are shown, one after the other.
+func (s *Service) interstitialChain(ctx context.Context) []ProviderRef {
 	out := []ProviderRef{}
 	for _, e := range s.entries(ctx) {
 		p := findProvider(e.ID)
 		if !e.Enabled || !p.has(FormatInterstitial) {
 			continue
 		}
-		switch e.ID {
-		case "adsgram":
-			if adsgramBlock != "" {
-				out = append(out, ProviderRef{ID: "adsgram", BlockID: adsgramBlock})
-			}
-		default:
-			if ref, ok := p.Ref(ctx, s, ""); ok {
-				ref.WaitSeconds = 0 // nothing is paid: no proof to wait for
-				out = append(out, ref)
-			}
+		ref, ok := ProviderRef{}, false
+		if p.InterstitialRef != nil {
+			ref, ok = p.InterstitialRef(ctx, s)
+		} else {
+			ref, ok = p.Ref(ctx, s, "")
+		}
+		if ok {
+			ref.WaitSeconds = 0 // nothing is paid: no proof to wait for
+			out = append(out, ref)
 		}
 	}
 	return out
