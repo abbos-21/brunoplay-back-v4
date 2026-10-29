@@ -17,6 +17,9 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.interstitial.first_after_seconds` | int | `120` | Interstitial: no ad in the first seconds after the app is opened |
 | `ads.interstitial.interval_seconds` | int | `180` | Interstitial: minimum seconds between two ads for one player |
 | `ads.max_failed_loads` | int | `3` | Failed ad loads in a row after which the action is allowed without an ad |
+| `ads.monetag.task_coins` | int | `1000` | Coins for one completed Monetag popup task |
+| `ads.monetag.task_enabled` | bool | `false` | Monetag popup task (Rewarded Popup: opens a partner offer) on the Tasks screen |
+| `ads.monetag.task_interval_minutes` | int | `480` | Monetag popup task: minutes between two paid tasks of one player (480 = 3 a day) |
 | `ads.monetag.wait_seconds` | int | `10` | Monetag: seconds after Monetag reports the ad before the action may go ahead (it reports when the ad starts, so set the ad's length) |
 | `ads.monetag.zone_id` | string | `` | Monetag main zone id (a number from the Monetag dashboard) |
 | `ads.placements_enabled` | json | `map[BONUS_COINS:true COLLECT:true COMBO_EXTRA:true DOUBLE_COMBO:true DOUBLE_STREAK:true FISHING_START:true RIDE_FREE:true TASK_ADS:true]` | Placement switches |

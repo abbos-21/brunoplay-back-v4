@@ -31,6 +31,9 @@ type Field struct {
 	Label string `json:"label"`
 	Help  string `json:"help"`
 	Kind  string `json:"kind"` // "string" | "bool" | "number"
+	// Min and Max bound a number field on the admin page
+	Min int `json:"min"`
+	Max int `json:"max"`
 }
 
 // ProviderRef is what the app needs to play an ad of one provider.
@@ -93,7 +96,7 @@ var providers = []providerDef{
 			{Key: settings.KeyAdsTadsWidget, Label: "Widget id", Help: "The number of the Fullscreen banner (rewarded) widget in the TADS dashboard, for example 12941.", Kind: "string"},
 			{Key: settings.KeyAdsTadsTGB, Label: "TGB widget id (test card)", Kind: "string",
 				Help: "A TGB (text-graphic block) widget of TADS. When filled in, a card with its ads appears on the Tasks screen (it pays nothing). Empty = no card."},
-			{Key: settings.KeyAdsTadsWait, Label: "Wait for the ad to end (seconds)", Kind: "number",
+			{Key: settings.KeyAdsTadsWait, Label: "Wait for the ad to end (seconds)", Kind: "number", Min: 0, Max: 120,
 				Help: "TADS reports an ad when it STARTS, not when it ends. The game stays on hold this many seconds after the ad starts, and the server refuses the action before that. Watch one TADS ad, time it, and put its length (or a little more) here. 0 = no wait."},
 			{Key: settings.KeyAdsTadsDebug, Label: "Debug mode", Help: "Test ads. Keep it OFF in production.", Kind: "bool"},
 		},
@@ -108,11 +111,15 @@ var providers = []providerDef{
 		},
 	},
 	{
-		ID: "monetag", Name: "Monetag", Formats: []Format{FormatRewarded, FormatInterstitial},
+		ID: "monetag", Name: "Monetag", Formats: []Format{FormatRewarded, FormatInterstitial, FormatTask},
 		Fields: []Field{
 			{Key: settings.KeyAdsMonetagZone, Label: "Main zone id", Help: "The number of the main SDK zone of the app in the Monetag dashboard (Telegram Mini Apps), for example 12144526.", Kind: "string"},
-			{Key: settings.KeyAdsMonetagWait, Label: "Wait for the ad to end (seconds)", Kind: "number",
+			{Key: settings.KeyAdsMonetagWait, Label: "Wait for the ad to end (seconds)", Kind: "number", Min: 0, Max: 120,
 				Help: "Monetag reports an ad when it STARTS, not when it ends. The game stays on hold this many seconds after the ad starts, and the server refuses the action before that. Put the length of a Monetag ad here. 0 = no wait."},
+			{Key: settings.KeyAdsMonetagTask, Label: "Popup task card (Tasks screen)", Kind: "bool",
+				Help: "A card on the Tasks screen: the player taps it, a partner offer opens outside the game, and after Monetag confirms it the player claims the coins below. The wait above applies too."},
+			{Key: settings.KeyAdsMonetagTaskCoins, Label: "Popup task: coins", Kind: "number", Min: 1, Max: 1000000, Help: "Coins for one completed popup task."},
+			{Key: settings.KeyAdsMonetagTaskInterval, Label: "Popup task: minutes between two tasks", Kind: "number", Min: 1, Max: 10080, Help: "480 = 3 a day per player."},
 		},
 		WaitKey: settings.KeyAdsMonetagWait,
 		Ref: func(ctx context.Context, s *Service, placement string) (ProviderRef, bool) {

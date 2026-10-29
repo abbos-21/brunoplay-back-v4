@@ -60,6 +60,7 @@ type Config struct {
 	Interstitial InterstitialConfig `json:"interstitial"`
 	Task         SponsoredStatus    `json:"task"`
 	Banner       BannerConfig       `json:"banner"`
+	PopupTask    PopupStatus        `json:"popupTask"`
 }
 
 // Config reads the interstitial settings and the player's sponsored-task status.
@@ -80,6 +81,11 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 		return nil, err
 	}
 	c.Task = *st
+	pop, err := s.Popup(ctx, playerID)
+	if err != nil {
+		return nil, err
+	}
+	c.PopupTask = *pop
 
 	w := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTadsTGB, ""))
 	c.Banner = BannerConfig{Provider: "tads", WidgetID: w, Debug: s.settings.BoolOr(ctx, settings.KeyAdsTadsDebug, false)}
@@ -110,10 +116,10 @@ func (s *Service) interstitialChain(ctx context.Context) []ProviderRef {
 	return out
 }
 
-// lastPaid is when the player was last paid for a sponsored task (nil: never).
-func (s *Service) lastPaid(ctx context.Context, q db.Querier, playerID int64) (*time.Time, error) {
+// lastPaid is when the player was last paid for a task of that placement (nil: never).
+func (s *Service) lastPaid(ctx context.Context, q db.Querier, playerID int64, placement string) (*time.Time, error) {
 	var at *time.Time
-	err := q.QueryRow(ctx, `SELECT max(used_at) FROM ad_views WHERE player_id=$1 AND placement=$2 AND status='USED'`, playerID, SponsoredTask).Scan(&at)
+	err := q.QueryRow(ctx, `SELECT max(used_at) FROM ad_views WHERE player_id=$1 AND placement=$2 AND status='USED'`, playerID, placement).Scan(&at)
 	return at, err
 }
 
@@ -142,7 +148,7 @@ func (s *Service) Sponsored(ctx context.Context, playerID int64) (*SponsoredStat
 	if st.IntervalMinutes, err = s.settings.Int(ctx, settings.KeyAdsTaskInterval); err != nil {
 		return nil, err
 	}
-	last, err := s.lastPaid(ctx, s.pool, playerID)
+	last, err := s.lastPaid(ctx, s.pool, playerID, SponsoredTask)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +181,7 @@ func (s *Service) SponsoredDone(ctx context.Context, telegramID int64, blockID s
 			return err
 		}
 		// a completion during the wait could be claimed the moment the wait ends: do not keep it
-		if last, err := s.lastPaid(ctx, tx, playerID); err != nil {
+		if last, err := s.lastPaid(ctx, tx, playerID, SponsoredTask); err != nil {
 			return err
 		} else if waitFor(last, time.Duration(interval)*time.Minute, now) > 0 {
 			return nil
@@ -224,7 +230,7 @@ func (s *Service) ClaimSponsored(ctx context.Context, playerID int64) (*Sponsore
 			return err
 		}
 		interval := time.Duration(st.IntervalMinutes) * time.Minute
-		last, err := s.lastPaid(ctx, tx, playerID)
+		last, err := s.lastPaid(ctx, tx, playerID, SponsoredTask)
 		if err != nil {
 			return err
 		}

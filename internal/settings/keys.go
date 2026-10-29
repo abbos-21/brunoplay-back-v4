@@ -35,21 +35,24 @@ const (
 	KeyAdsComboExtra  = "ads.combo_extra.max_per_day"
 	KeyAdsRideFree    = "ads.ride_free.max_per_day"
 
-	KeyAdsInterEnabled = "ads.interstitial.enabled"
-	KeyAdsInterBlock   = "ads.interstitial.block_id"
-	KeyAdsInterGap     = "ads.interstitial.interval_seconds"
-	KeyAdsInterFirst   = "ads.interstitial.first_after_seconds"
-	KeyAdsTaskEnabled  = "ads.task.enabled"
-	KeyAdsTaskBlock    = "ads.task.block_id"
-	KeyAdsTaskCoins    = "ads.task.reward_coins"
-	KeyAdsTaskInterval = "ads.task.interval_minutes"
-	KeyAdsProviders    = "ads.providers"
-	KeyAdsTadsWidget   = "ads.tads.widget_id"
-	KeyAdsTadsDebug    = "ads.tads.debug"
-	KeyAdsTadsWait     = "ads.tads.wait_seconds"
-	KeyAdsTadsTGB      = "ads.tads.tgb_widget_id"
-	KeyAdsMonetagZone  = "ads.monetag.zone_id"
-	KeyAdsMonetagWait  = "ads.monetag.wait_seconds"
+	KeyAdsInterEnabled        = "ads.interstitial.enabled"
+	KeyAdsInterBlock          = "ads.interstitial.block_id"
+	KeyAdsInterGap            = "ads.interstitial.interval_seconds"
+	KeyAdsInterFirst          = "ads.interstitial.first_after_seconds"
+	KeyAdsTaskEnabled         = "ads.task.enabled"
+	KeyAdsTaskBlock           = "ads.task.block_id"
+	KeyAdsTaskCoins           = "ads.task.reward_coins"
+	KeyAdsTaskInterval        = "ads.task.interval_minutes"
+	KeyAdsProviders           = "ads.providers"
+	KeyAdsTadsWidget          = "ads.tads.widget_id"
+	KeyAdsTadsDebug           = "ads.tads.debug"
+	KeyAdsTadsWait            = "ads.tads.wait_seconds"
+	KeyAdsTadsTGB             = "ads.tads.tgb_widget_id"
+	KeyAdsMonetagZone         = "ads.monetag.zone_id"
+	KeyAdsMonetagWait         = "ads.monetag.wait_seconds"
+	KeyAdsMonetagTask         = "ads.monetag.task_enabled"
+	KeyAdsMonetagTaskCoins    = "ads.monetag.task_coins"
+	KeyAdsMonetagTaskInterval = "ads.monetag.task_interval_minutes"
 
 	// fishing, cards, boosters, levels
 	KeyCollectMinPct   = "fishing.collect_min_percent"
@@ -291,6 +294,9 @@ func Registry() []Def {
 		b(KeyAdsTadsDebug, "ads", "TADS debug mode (test ads; keep OFF in production)", false),
 		s(KeyAdsMonetagZone, "ads", "Monetag main zone id (a number from the Monetag dashboard)", ""),
 		i(KeyAdsMonetagWait, "ads", "Monetag: seconds after Monetag reports the ad before the action may go ahead (it reports when the ad starts, so set the ad's length)", 10, 0, 120),
+		b(KeyAdsMonetagTask, "ads", "Monetag popup task (Rewarded Popup: opens a partner offer) on the Tasks screen", false),
+		i(KeyAdsMonetagTaskCoins, "ads", "Coins for one completed Monetag popup task", 1000, 1, big),
+		i(KeyAdsMonetagTaskInterval, "ads", "Monetag popup task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),
 		i(KeyAdsTadsWait, "ads", "TADS: seconds after TADS reports the ad before the action may go ahead (TADS reports when the ad starts, so set the ad's length)", 15, 0, 120),
 
 		i(KeyCollectMinPct, "fishing", "Minimum tank fill (%) needed to collect", 10, 0, 100),

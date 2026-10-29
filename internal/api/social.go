@@ -25,6 +25,7 @@ func (d *Deps) socialRoutes(r chi.Router) {
 		r.Get("/ads/bonus", httpx.Wrap(d.bonusStatus))
 		r.Get("/ads/config", httpx.Wrap(d.adsConfig))
 		r.Post("/ads/interstitial/report", httpx.Wrap(d.interstitialReport))
+		r.Post("/ads/popup-task/prepare", httpx.Wrap(d.popupPrepare))
 		r.Get("/friends", httpx.Wrap(d.friends))
 		r.Get("/friends/stats", httpx.Wrap(d.friendsStats))
 		r.Get("/friends/rewards", httpx.Wrap(d.friendsRewards))
@@ -41,6 +42,7 @@ func (d *Deps) socialRoutes(r chi.Router) {
 			r.Post("/tasks/{id}/ad-progress", httpx.Wrap(d.taskAdProgress))
 			r.Post("/ads/bonus/claim", httpx.Wrap(d.bonusClaim))
 			r.Post("/ads/task/claim", httpx.Wrap(d.sponsoredClaim))
+			r.Post("/ads/popup-task/claim", httpx.Wrap(d.popupClaim))
 		})
 	})
 }
@@ -449,6 +451,31 @@ func (d *Deps) adsConfig(w http.ResponseWriter, r *http.Request) error {
 
 func (d *Deps) sponsoredClaim(w http.ResponseWriter, r *http.Request) error {
 	res, err := d.Ads.ClaimSponsored(r.Context(), httpx.PlayerFrom(r.Context()).ID)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, res)
+	return nil
+}
+
+// popupPrepare gives the game the proof for the next Monetag popup (it must be held before the tap: the browser only opens the popup
+// inside a tap, so there is no time to ask the server after it).
+func (d *Deps) popupPrepare(w http.ResponseWriter, r *http.Request) error {
+	res, err := d.Ads.PopupPrepare(r.Context(), httpx.PlayerFrom(r.Context()).ID)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, res)
+	return nil
+}
+
+// popupClaim pays the coins of a popup task that Monetag's postback has confirmed (AD_NOT_COMPLETED until then).
+func (d *Deps) popupClaim(w http.ResponseWriter, r *http.Request) error {
+	var in adReq
+	if err := httpx.Decode(r, &in); err != nil {
+		return err
+	}
+	res, err := d.Ads.ClaimPopup(r.Context(), httpx.PlayerFrom(r.Context()).ID, in.AdViewID)
 	if err != nil {
 		return err
 	}
