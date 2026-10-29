@@ -80,7 +80,8 @@ func (d *Deps) monetagWebhook(w http.ResponseWriter, r *http.Request) error {
 		return apperr.Unauthorized
 	}
 	no := func() error { httpx.JSON(w, 200, map[string]bool{"ok": false}); return nil }
-	ymid := strings.TrimSpace(q.Get("ymid"))
+	// the app may retry a stuck ad with "<proof id>_2": the part before the underscore is the proof
+	ymid, _, _ := strings.Cut(strings.TrimSpace(q.Get("ymid")), "_")
 	if !ymidRe.MatchString(ymid) || q.Get("reward_event_type") != "valued" {
 		return no()
 	}

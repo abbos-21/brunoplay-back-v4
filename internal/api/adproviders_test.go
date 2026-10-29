@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -302,7 +303,7 @@ func TestMonetagPostbackCompletesTheExactProof(t *testing.T) {
 		t.Fatalf("before the postback: %d %s", r.Status, r.Body)
 	}
 	// the real one; a click or a retry of the same ad answers 200 without doing anything again
-	if r := hook(base + "&telegram_id=7101"); r["ok"] != true {
+	if r := hook(strings.Replace(base, "ymid="+id, "ymid="+id+"_2", 1) + "&telegram_id=7101"); r["ok"] != true {
 		t.Fatalf("postback: %v", r)
 	}
 	if r := hook(base + "&event_type=click"); r["ok"] != false {
