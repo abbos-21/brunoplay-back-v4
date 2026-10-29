@@ -100,7 +100,7 @@ var providers = []providerDef{
 		},
 	},
 	{
-		ID: "monetag", Name: "Monetag", Formats: []Format{FormatRewarded},
+		ID: "monetag", Name: "Monetag", Formats: []Format{FormatRewarded, FormatInterstitial},
 		Fields: []Field{
 			{Key: settings.KeyAdsMonetagZone, Label: "Main zone id", Help: "The number of the main SDK zone of the app in the Monetag dashboard (Telegram Mini Apps), for example 12144526.", Kind: "string"},
 			{Key: settings.KeyAdsMonetagWait, Label: "Wait for the ad to end (seconds)", Kind: "number",

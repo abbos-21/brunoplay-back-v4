@@ -28,10 +28,12 @@ const (
 
 // InterstitialConfig tells the game when it may show an Interstitial ad. The server keeps no state for them: nothing is paid.
 type InterstitialConfig struct {
-	Enabled           bool   `json:"enabled"`
-	BlockID           string `json:"blockId"`
-	IntervalSeconds   int64  `json:"intervalSeconds"`
-	FirstAfterSeconds int64  `json:"firstAfterSeconds"`
+	Enabled bool   `json:"enabled"`
+	BlockID string `json:"blockId"` // the Adsgram block (kept for older apps); Providers is the full list
+	// Providers is the priority list: the app tries them in order and moves on when one has no ad.
+	Providers         []ProviderRef `json:"providers"`
+	IntervalSeconds   int64         `json:"intervalSeconds"`
+	FirstAfterSeconds int64         `json:"firstAfterSeconds"`
 }
 
 // SponsoredStatus is what the Tasks screen needs to show (or hide) the sponsored task. After a paid task the next one is
@@ -64,8 +66,9 @@ type Config struct {
 func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	c := &Config{}
 	block := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsInterBlock, ""))
-	c.Interstitial.Enabled = s.settings.BoolOr(ctx, settings.KeyAdsInterEnabled, false) && block != "" && s.ProviderOn(ctx, "adsgram", FormatInterstitial)
 	c.Interstitial.BlockID = block
+	c.Interstitial.Providers = s.interstitialChain(ctx, block)
+	c.Interstitial.Enabled = s.settings.BoolOr(ctx, settings.KeyAdsInterEnabled, false) && len(c.Interstitial.Providers) > 0
 	if c.Interstitial.Enabled && s.PlayerAdsOff(ctx, s.pool, playerID) {
 		c.Interstitial.Enabled = false
 	}
@@ -82,6 +85,30 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 	c.Banner = BannerConfig{Provider: "tads", WidgetID: w, Debug: s.settings.BoolOr(ctx, settings.KeyAdsTadsDebug, false)}
 	c.Banner.Enabled = widgetRe.MatchString(w) && s.ProviderOn(ctx, "tads", FormatBanner) && !s.PlayerAdsOff(ctx, s.pool, playerID)
 	return c, nil
+}
+
+// interstitialChain lists, in priority order, the providers that can show an interstitial now: Adsgram with its interstitial block,
+// Monetag with its zone (the others do not serve the format).
+func (s *Service) interstitialChain(ctx context.Context, adsgramBlock string) []ProviderRef {
+	out := []ProviderRef{}
+	for _, e := range s.entries(ctx) {
+		p := findProvider(e.ID)
+		if !e.Enabled || !p.has(FormatInterstitial) {
+			continue
+		}
+		switch e.ID {
+		case "adsgram":
+			if adsgramBlock != "" {
+				out = append(out, ProviderRef{ID: "adsgram", BlockID: adsgramBlock})
+			}
+		default:
+			if ref, ok := p.Ref(ctx, s, ""); ok {
+				ref.WaitSeconds = 0 // nothing is paid: no proof to wait for
+				out = append(out, ref)
+			}
+		}
+	}
+	return out
 }
 
 // lastPaid is when the player was last paid for a sponsored task (nil: never).

@@ -330,3 +330,60 @@ func TestMonetagPostbackCompletesTheExactProof(t *testing.T) {
 		t.Fatalf("31s after the postback: %d %s", r.Status, r.Body)
 	}
 }
+
+func TestInterstitialChainFollowsProvidersAndSwitches(t *testing.T) {
+	e := newEnv(t)
+	e.gameConfig()
+	boss := e.adminLogin("boss@example.com", admin.RoleSuper)
+	p := e.login(7201, "en", "")
+	pr := func(id string, on bool) map[string]any { return map[string]any{"id": id, "enabled": on} }
+	save := func(order []map[string]any, fields map[string]any) {
+		t.Helper()
+		if r := e.do("PUT", "/api/admin/ads/providers", boss, map[string]any{"providers": order, "fields": fields}); r.Status != 200 {
+			t.Fatalf("save: %d %s", r.Status, r.Body)
+		}
+	}
+	inter := func() map[string]any {
+		return e.do("GET", "/api/ads/config", p.Token, nil).JSON(t)["interstitial"].(map[string]any)
+	}
+	ids := func(c map[string]any) []string {
+		out := []string{}
+		for _, x := range c["providers"].([]any) {
+			out = append(out, x.(map[string]any)["id"].(string))
+		}
+		return out
+	}
+	e.setSetting(settings.KeyAdsInterEnabled, true)
+	e.setSetting(settings.KeyAdsInterBlock, "int-1")
+	zone := map[string]any{settings.KeyAdsMonetagZone: "12144526"}
+
+	// Adsgram alone (Monetag has no zone yet): as before
+	save([]map[string]any{pr("adsgram", true), pr("tads", false), pr("monetag", true)}, nil)
+	if c := inter(); c["enabled"] != true || !eq(ids(c), []string{"adsgram"}) || c["blockId"] != "int-1" {
+		t.Fatalf("adsgram only: %v", c)
+	}
+	// both: in the priority order, Monetag as the backup
+	save([]map[string]any{pr("adsgram", true), pr("tads", false), pr("monetag", true)}, zone)
+	if c := inter(); !eq(ids(c), []string{"adsgram", "monetag"}) {
+		t.Fatalf("both: %v", c)
+	}
+	save([]map[string]any{pr("monetag", true), pr("adsgram", true), pr("tads", false)}, nil)
+	if c := inter(); !eq(ids(c), []string{"monetag", "adsgram"}) {
+		t.Fatalf("monetag first: %v", c)
+	}
+	// Adsgram off: Monetag alone still serves interstitials (the old app sees no block and shows none)
+	save([]map[string]any{pr("adsgram", false), pr("tads", false), pr("monetag", true)}, nil)
+	if c := inter(); c["enabled"] != true || !eq(ids(c), []string{"monetag"}) || c["blockId"] != "int-1" {
+		t.Fatalf("monetag only: %v", c)
+	}
+	// Monetag off too, or the interstitial switch off: nothing
+	save([]map[string]any{pr("adsgram", false), pr("tads", false), pr("monetag", false)}, nil)
+	if c := inter(); c["enabled"] != false || len(ids(c)) != 0 {
+		t.Fatalf("all off: %v", c)
+	}
+	save([]map[string]any{pr("adsgram", true), pr("tads", false), pr("monetag", true)}, nil)
+	e.setSetting(settings.KeyAdsInterEnabled, false)
+	if c := inter(); c["enabled"] != false {
+		t.Fatalf("switch off: %v", c)
+	}
+}
