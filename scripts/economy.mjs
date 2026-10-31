@@ -33,6 +33,8 @@ export const ASSUMPTIONS = {
 const OVERRIDES = {
   // the guard counts a coin as 0.00006 stars: 1 coin = $0.000001 and 1 star = $0.0166 in the owner's own calculator
   'guard.coin_value_stars': 0.00006,
+  // the server does not accept 0 coins here (the minimum is 1); bonus ads per day is 0, so no bonus ad can pay it anyway
+  'ads.bonus.coins': 1,
 }
 
 const round = (x, d = 0) => Math.round(x * 10 ** d) / 10 ** d
@@ -50,6 +52,8 @@ export function buildSettings({ wallet, blockIds, links } = {}) {
   delete s['notifications.quiet_hours.from']
   delete s['notifications.quiet_hours.to']
   Object.assign(s, OVERRIDES)
+  // the Monetag card is off; 0 is below the server's minimum of 1, so the server's own default stays
+  if (!(s['ads.monetag.task_coins'] >= 1)) delete s['ads.monetag.task_coins']
 
   // ---- cards: the mining speed is the tank divided by the seconds it takes to fill
   const reqs = (r, p) => {
