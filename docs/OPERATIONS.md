@@ -11,7 +11,7 @@
    **Production refuses to start** if `DEV_AUTH` is on or a required secret is missing.
 3. `cp deploy/.env.deploy.example deploy/.env` and set `POSTGRES_PASSWORD`, `APP_DOMAIN`, `ADMIN_DOMAIN`, and the off-site backup repository.
 4. `cd deploy && ./deploy.sh`. It builds, takes a quick backup, migrates, restarts, waits for `/readyz`, and rolls back if the API does not come up.
-5. Create the first super admin: `docker compose -f deploy/docker-compose.yml run --rm -e ADMIN_PASSWORD=... api admin-create --email you@example.com`
+5. Create the first super admin: `docker compose -f deploy/docker-compose.yml run --rm -e ADMIN_PASSWORD=... api admin-create --email you@example.com` If you lose the password: `docker compose -f deploy/docker-compose.yml run --rm api admin-reset-password --email you@example.com` sets a new random one and shows it once.
    (use a strong password you then keep in a password manager; never put it in a file).
 6. The bot's webhook and command menus are registered automatically when the API starts.
 7. In the admin panel, fill the values listed in `docs/SETTINGS.md` marked **required** (the panel's "missing" view lists them).

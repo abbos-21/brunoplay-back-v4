@@ -1,11 +1,13 @@
-// Command brunoplay is the BrunoPlay backend: `api`, `worker`, `all` (both, for development), `migrate`, `admin-create`.
+// Command brunoplay is the BrunoPlay backend: `api`, `worker`, `all` (both, for development), `migrate`, `admin-create`, `admin-reset-password`.
 package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"os"
 	"os/signal"
@@ -56,6 +58,10 @@ func main() {
 		if err := adminCreate(ctx, cfg, os.Args[2:]); err != nil {
 			fatal("admin-create", err)
 		}
+	case "admin-reset-password":
+		if err := adminResetPassword(ctx, cfg, os.Args[2:]); err != nil {
+			fatal("admin-reset-password", err)
+		}
 	default:
 		usage()
 		os.Exit(2)
@@ -63,7 +69,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: brunoplay <api|worker|all|migrate|admin-create --email you@example.com [--name Name]>")
+	fmt.Fprintln(os.Stderr, "usage: brunoplay <api|worker|all|migrate|admin-create --email you@example.com [--name Name]|admin-reset-password --email you@example.com>")
 }
 
 func fatal(what string, err error) {
@@ -212,4 +218,73 @@ func writeDocs(cfg config.Config) error {
 		return err
 	}
 	return os.WriteFile("docs/SETTINGS.md", []byte(apidoc.Settings()), 0o644)
+}
+
+// adminResetPassword sets a new random password for an admin and prints it once on the terminal (passwords are stored only as
+// hashes, so an old one can never be read back). The account is unlocked and signed out everywhere. Run it on the server:
+//
+//	docker compose run --rm api admin-reset-password --email you@example.com
+func adminResetPassword(ctx context.Context, cfg config.Config, args []string) error {
+	var email string
+	for i := 0; i+1 < len(args); i += 2 {
+		if args[i] == "--email" {
+			email = strings.ToLower(strings.TrimSpace(args[i+1]))
+		}
+	}
+	if email == "" {
+		return errors.New("--email is required")
+	}
+	pool, err := db.Connect(ctx, cfg.DatabaseURL, 2)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	var id int64
+	if err := pool.QueryRow(ctx, `SELECT id FROM admins WHERE lower(email)=$1`, email).Scan(&id); err != nil {
+		return fmt.Errorf("no admin with the email %q", email)
+	}
+	pw, err := randomPassword(20)
+	if err != nil {
+		return err
+	}
+	deps := api.NewDeps(cfg, pool)
+	if _, err := deps.Admin.Update(ctx, id, admin.UpdateInput{Password: &pw}); err != nil {
+		return err
+	}
+	slog.Info("admin password reset", "id", id, "email", email)
+	fmt.Fprintf(os.Stderr, "\nNew password for %s (shown once, change it after you log in):\n\n%s\n\n", email, pw)
+	return nil
+}
+
+// randomPassword draws from letters and digits without look-alike characters, and always has all three kinds.
+func randomPassword(n int) (string, error) {
+	const lower, upper, digits = "abcdefghijkmnpqrstuvwxyz", "ABCDEFGHJKLMNPQRSTUVWXYZ", "23456789"
+	all := lower + upper + digits
+	pick := func(set string) (byte, error) {
+		i, err := rand.Int(rand.Reader, big.NewInt(int64(len(set))))
+		if err != nil {
+			return 0, err
+		}
+		return set[i.Int64()], nil
+	}
+	b := make([]byte, n)
+	for i := range b {
+		set := all
+		if i < 3 {
+			set = []string{lower, upper, digits}[i]
+		}
+		c, err := pick(set)
+		if err != nil {
+			return "", err
+		}
+		b[i] = c
+	}
+	for i := n - 1; i > 0; i-- { // shuffle so the three kinds are not always at the start
+		j, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return "", err
+		}
+		b[i], b[j.Int64()] = b[j.Int64()], b[i]
+	}
+	return string(b), nil
 }
