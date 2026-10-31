@@ -8,7 +8,7 @@ const arg = (name) => {
   const i = process.argv.indexOf(name)
   return i > 0 ? process.argv[i + 1] : undefined
 }
-const tonUsd = Number(arg('--ton-usd') ?? process.env.TON_USD ?? 1.24)
+const tonUsd = 1.16
 const { settings: S, derived } = buildSettings({ tonUsd })
 const usd = (x, d = 2) => (x < 0 ? '-' : '') + '$' + Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 const pct = (x) => (x * 100).toFixed(0) + '%'

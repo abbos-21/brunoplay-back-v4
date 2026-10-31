@@ -1,237 +1,97 @@
-// The BrunoPlay economy: every number the owner has to supply (docs/SETTINGS.md), chosen together so that the game is fun
-// to play, pays something real to the players who stay, and still earns money. Used by two scripts:
+// The BrunoPlay economy. Every number the owner decides lives in scripts/economy-answers.json (the file filled in with
+// BrunoPlay-economy-fill-in.html). buildSettings() turns it into the settings written to the server. Used by two scripts:
 //
 //   node scripts/economy-report.mjs      simulates the economy (best / base / worst case) and prints the result
 //   node scripts/production-seed.mjs     writes these values to a server through the admin API
 //
-// All money in this file is derived from the few ASSUMPTIONS below. If one of them is wrong in real life, change it here,
-// run the report, and look at the result before you seed.
+// Nothing is invented or recalculated here: the typed values are written exactly. The only changes made to the answers are
+// listed in OVERRIDES. To change the economy, edit the answers file (or fill the HTML again) and run the seed again.
+import { readFileSync } from 'node:fs'
+
+const answers = JSON.parse(readFileSync(new URL('./economy-answers.json', import.meta.url), 'utf8'))
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Assumptions (the real world, not game settings)
+// Assumptions (the real world, only used by the report, never written to the server)
 // ---------------------------------------------------------------------------------------------------------------------
 export const ASSUMPTIONS = {
   // what the owner nets for one game star bought with a Telegram Star (Telegram pays out about 0.013 USD per Star)
   netPerTelegramStar: 0.013,
   // what a game star costs when it is bought with TON (the owner keeps all of it, minus the bonus given on the TON tab)
-  tonPricePerStar: 0.0175,
+  tonPricePerStar: 0.0166,
   tonBonusPercent: 10,
   // share of star purchases that go through TON (the rest uses Telegram Stars)
   tonShare: 0.4,
-  // what one coin is worth in USD at the moment the rate is set. This is THE number that decides how much the players
-  // are paid: 1,000,000 coins = 1.25 USD. Everything else is built around it.
-  coinUsd: 1.25e-6,
+  // what one coin is worth in USD: 1,000,000 coins = 1 USD (1.16 TON x 1,000,000 coins)
+  coinUsd: 1e-6,
   // what the owner's own Telegram Star / game star is worth when a real gift is bought for a winner
   giftCostPerStar: 0.013,
   // Adsgram pays per completed rewarded ad (USD). Nobody knows this for your audience until you have a month of data.
   adUsd: { worst: 0.0007, base: 0.002, best: 0.006 },
 }
 
+// Changes made on purpose to the typed answers (decided together when the answers were checked)
+const OVERRIDES = {
+  // the guard counts a coin as 0.00006 stars: 1 coin = $0.000001 and 1 star = $0.0166 in the owner's own calculator
+  'guard.coin_value_stars': 0.00006,
+}
+
 const round = (x, d = 0) => Math.round(x * 10 ** d) / 10 ** d
-const roundTo = (x, step) => Math.round(x / step) * step
+const rows = (name) => answers.tables[name].rows
+const num = (v) => (v === null || v === undefined || v === '' ? 0 : Number(v))
 
-// ---------------------------------------------------------------------------------------------------------------------
-// The design
-// ---------------------------------------------------------------------------------------------------------------------
-export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
-  if (!(tonUsd > 0)) throw new Error('tonUsd (the price of 1 TON in USD) is required')
-  const A = ASSUMPTIONS
+export function buildSettings({ wallet, blockIds, links } = {}) {
+  const s = {}
+  for (const { key, value } of answers.settings) {
+    if (value === null || value === undefined) continue
+    s[key] = value
+  }
+  // two keys of the form are one setting on the server
+  s['notifications.quiet_hours'] = { from: s['notifications.quiet_hours.from'], to: s['notifications.quiet_hours.to'] }
+  delete s['notifications.quiet_hours.from']
+  delete s['notifications.quiet_hours.to']
+  Object.assign(s, OVERRIDES)
 
-  // ---- the two rates that depend on the price of TON (re-run the seed when TON moves a lot)
-  const coinsPerTon = roundTo(tonUsd / A.coinUsd, 10000)
-  const starsPerTon = Math.max(1, round(tonUsd / A.tonPricePerStar))
-
-  // ---- fishing cards. Capacity is the tank (coins); the mining rate makes the tank fill in `hours`.
-  // Small tanks that fill fast, so a player has a reason to open the game every one to two hours. The earning power for a
-  // player who collects on time is about the same as before at levels 1 to 7 (a bit more at 1 to 6, a bit less above), but it
-  // comes in many small collects instead of a few big ones. Every collect also shows ads, and a small collect pays less than
-  // the ads it brings, so more entries is better for the project. The old design was 400 ... 10000 coins filling in 5 ... 3 hours.
-  const capacity = [200, 300, 450, 650, 900, 1150, 1400, 1650, 1850, 2000]
-  const hours = [2, 2, 2, 1.75, 1.5, 1.5, 1.25, 1.25, 1, 1]
-  const rate = capacity.map((c, i) => round(c / (hours[i] * 3600), 5))
-  const L = (n, ru, en) => ({ en, ru })
-
-  const other = (n) => ({
-    type: 'other_card_level', value: n,
-    desc_en: `The other card must be level ${n}`, desc_ru: `Вторая карточка должна быть ${n} уровня`,
-  })
-  const invite = (n) => ({
-    type: 'invite_friends', value: n,
-    desc_en: `Invite ${n} friends`, desc_ru: `Пригласите друзей: ${n}`,
-  })
-
-  const miningCoins = [0, 800, 2000, 4500, 9000]
-  const miningStars = [40, 70, 110, 170, 260]
-  const capCoins = [0, 600, 1500, 3500, 7000]
-  const capStars = [30, 55, 90, 140, 220]
-  const miningReq = { 4: [other(3)], 5: [other(4), invite(2)], 6: [other(5)], 7: [other(6), invite(3)], 8: [other(7)], 9: [other(8)], 10: [other(9), invite(5)] }
-  const capReq = { 3: [other(2)], 4: [other(3)], 5: [other(4)], 6: [other(5)], 7: [other(6)], 8: [other(7), invite(3)], 9: [other(8)], 10: [other(9)] }
-  const table = (values, coins, stars, req) =>
-    values.map((value, i) => {
-      const level = i + 1
-      const useCoins = level <= 5
+  // ---- cards: the mining speed is the tank divided by the seconds it takes to fill
+  const reqs = (r, p) => {
+    const out = []
+    if (num(r[p + '_other']) > 1) out.push({ type: 'other_card_level', value: num(r[p + '_other']), desc_en: `The other card must be level ${r[p + '_other']}`, desc_ru: `Вторая карточка должна быть ${r[p + '_other']} уровня` })
+    if (num(r[p + '_friends']) > 0) out.push({ type: 'invite_friends', value: num(r[p + '_friends']), desc_en: `Invite ${r[p + '_friends']} friends`, desc_ru: `Пригласите друзей: ${r[p + '_friends']}` })
+    if (num(r[p + '_plevel']) > 1) out.push({ type: 'player_level', value: num(r[p + '_plevel']), desc_en: `Reach player level ${r[p + '_plevel']}`, desc_ru: `Достигните ${r[p + '_plevel']} уровня игрока` })
+    return out
+  }
+  const card = (kind) =>
+    rows('cards').map((r) => {
+      const p = kind === 'mining' ? 'mining' : 'cap'
       return {
-        level, value,
-        cost: level === 1 ? 0 : useCoins ? coins[level - 1] : stars[level - 6],
-        currency: level <= 5 ? 'COIN' : 'STAR',
-        requirements: req[level] ?? [],
+        level: r.level,
+        value: kind === 'mining' ? round(r.tank / (r.hours * 3600), 5) : r.tank,
+        cost: num(r[p + '_cost']),
+        currency: r[p + '_cur'] ?? 'COIN',
+        requirements: reqs(r, p),
       }
     })
+  s['cards.mining.levels'] = card('mining')
+  s['cards.capacity.levels'] = card('capacity')
 
-  // ---- gifts and the spin (see tuneSpin below: the odds are computed so every tier pays out the intended share)
-  const gifts = [
-    ['apple', 'Apple', 'Яблоко', 15],
-    ['cat', 'Cat', 'Кот', 25],
-    ['panda', 'Panda', 'Панда', 50],
-    ['watch', 'Watch', 'Часы', 100],
-    ['ring', 'Ring', 'Кольцо', 250],
-    ['cap', 'Cap', 'Кепка', 1000],
-    ['heart', 'Heart', 'Сердце', 2500],
-    ['frog', 'Frog', 'Лягушка', 10000],
-  ].map(([key, en, ru, v]) => ({ key, name_en: en, name_ru: ru, star_value: v }))
+  // ---- tables
+  s['topup.packs'] = rows('topup_packs').map((r) => ({ stars: r.stars }))
+  s['levels.rewards'] = rows('level_rewards').map((r) => ({ level: r.level, coins: num(r.coins), stars: num(r.stars) }))
+  s['streak.rewards'] = rows('streak').map((r) => r.coins)
+  s['referral.level_rewards'] = Object.fromEntries(rows('referral_levels').map((r) => [r.level, r.coins]))
+  s['ads.placements_enabled'] = Object.fromEntries(rows('placements').map((r) => [r.name, r.on === 'Yes']))
 
-  const spinTiers = [
-    { tier: 'TIER_1', price_stars: 30, rtp: 0.7, name_en: 'Bronze', name_ru: 'Бронза' },
-    { tier: 'TIER_2', price_stars: 75, rtp: 0.72, name_en: 'Silver', name_ru: 'Серебро' },
-    { tier: 'TIER_3', price_stars: 150, rtp: 0.75, name_en: 'Gold', name_ru: 'Золото' },
-    { tier: 'TIER_4', price_stars: 400, rtp: 0.78, name_en: 'Platinum', name_ru: 'Платина' },
-    { tier: 'TIER_5', price_stars: 1000, rtp: 0.8, name_en: 'Diamond', name_ru: 'Алмаз' },
-  ]
-  // the wheel pays stars and coins in the amounts the gifts are worth (set WHEEL_PAYS_GIFTS to bring the Telegram gifts back)
-  const giftOdds = tuneSpin(gifts, spinTiers)
-  const odds = WHEEL_PAYS_GIFTS ? giftOdds : cashOdds(giftOdds, gifts)
-
-  // ---- chest: 3 picks per round, prizes drawn when the round is paid
-  const chestPool = [
-    { type: 'coins', value: 3000, weight: 300 },
-    { type: 'coins', value: 10000, weight: 200 },
-    { type: 'coins', value: 30000, weight: 90 },
-    { type: 'stars', value: 3, weight: 170 },
-    { type: 'stars', value: 8, weight: 100 },
-    { type: 'stars', value: 25, weight: WHEEL_PAYS_GIFTS ? 25 : 60 },
-    ...(WHEEL_PAYS_GIFTS
-      ? [
-          { type: 'gift', gift: 'apple', weight: 70 },
-          { type: 'gift', gift: 'cat', weight: 35 },
-          { type: 'gift', gift: 'panda', weight: 10 },
-        ]
-      : [
-          // the gifts are paid as the same number of stars (Apple 15, Cat 25, Panda 50), so the return stays 73.8%
-          { type: 'stars', value: 15, weight: 70 },
-          { type: 'stars', value: 50, weight: 10 },
-        ]),
-  ]
-
-  const streak = [200, 250, 300, 400, 500, 600, 750, 900, 1100, 1500]
-
-  const s = {
-    // ---- ads: ALWAYS required in production, they are the main income
-    'ads.required': true,
-    'ads.view_expiry_seconds': 300,
-    'ads.max_failed_loads': 3,
-    'ads.fallback_minutes': 10,
-    'ads.bonus.coins': 250,
-    'ads.bonus.max_per_day': 12,
-    'ads.combo_extra.max_per_day': 2,
-    'ads.ride_free.max_per_day': 3,
-
-    // ---- fishing
-    'fishing.collect_min_percent': 10,
-    'cards.mining.levels': table(rate, miningCoins, miningStars, miningReq),
-    'cards.capacity.levels': table(capacity, capCoins, capStars, capReq),
-
-    // ---- boosters
-    'boosters.autocollect.price_stars': 150,
-    'boosters.mining.price_stars': 70,
-    'boosters.mining.multiplier': 1.5,
-    'boosters.duration_days': 30,
-
-    // ---- levels: coins every level, a few stars from level 5 on
-    'levels.rewards': [
-      { level: 2, coins: 500, stars: 0 }, { level: 3, coins: 1000, stars: 0 }, { level: 4, coins: 2000, stars: 0 },
-      { level: 5, coins: 4000, stars: 3 }, { level: 6, coins: 6000, stars: 5 }, { level: 7, coins: 9000, stars: 8 },
-      { level: 8, coins: 13000, stars: 10 }, { level: 9, coins: 18000, stars: 15 }, { level: 10, coins: 30000, stars: 25 },
-    ],
-
-    // ---- daily
-    'streak.rewards': streak,
-    'combo.coins_per_correct': 300,
-
-    // ---- friends
-    'referral.level_rewards': { 2: 1500, 3: 2500, 4: 4000, 5: 6000, 6: 9000, 7: 13000, 8: 18000, 9: 25000, 10: 35000 },
-    'referral.mining_percent': 5,
-    'referral.mining_cap_per_friend': 30000,
-    'referral.default_join_bonus': 1000,
-
-    // ---- games
-    'spin.tiers': spinTiers.map(({ rtp, ...t }) => t),
-    'spin.odds': odds,
-    'spin.publish_odds': false,
-    'spin.winners_min_value': 250,
-    gifts,
-    'chest.round_cost_stars': 20,
-    'chest.picks_per_round': 3,
-    'chest.pool': chestPool,
-    'chest.round_expiry_hours': 0,
-    'ride.run_cost_stars': 2,
-    'ride.max_coins_per_day': 4000,
-    'ride.max_coins_per_second': 8,
-    'ride.max_points_per_second': 70,
-    'ride.min_duration_seconds': 3,
-    'ride.max_duration_seconds': 900,
-    'ride.spawn_delay_seconds': 3,
-    // the safety net for the prize games: over any 72 hours a tier never pays out more than 85% of what it took in
-    'guard.max_payout_ratio': 0.85,
-    'guard.window_hours': 72,
-    // one star is worth about 10,000 coins, so a coin prize counts for that little in the payout ratio
-    'guard.coin_value_stars': 0.0001,
-
-    // ---- stars top-up
-    'topup.packs': [100, 250, 500, 1000, 2500, 5000, 10000, 25000].map((stars) => ({ stars })),
-    'topup.telegram.ratio': 1,
-    'topup.telegram.bonus_percent': 0,
-    'topup.ton.bonus_percent': A.tonBonusPercent,
-    'topup.ton.stars_per_ton': starsPerTon,
-    'topup.ton.confirmations': 10,
-    'topup.ton.order_expiry_minutes': 30,
-
-    // ---- coins -> TON. 1,000,000 coins is about 1.25 USD. A first payout needs level 2, no account-age requirement and
-    // 0.05 TON of coins (kept at 0.05 TON when the TON price moves); a player can take at most 0.5 USD a day and
-    // 100 TON in total. Payouts that leave the player up to 0.075 TON are sent automatically.
-    'withdrawal.coins_per_ton': coinsPerTon,
-    'withdrawal.fee_ton': 0.01,
-    'withdrawal.min_coins': 20000, // about 0.02 TON; the fee (0.01 TON) is half of it
-    'withdrawal.max_coins': 400000,
-    'withdrawal.daily_limit_coins': 400000,
-    'withdrawal.total_limit_coins': roundTo(100 * coinsPerTon, 1000000), // 100 TON
-    'withdrawal.cooldown_hours': 48,
-    'withdrawal.min_level': 2,
-    'withdrawal.min_account_days': 0,
-    // automatic payouts (needs AUTO_PAYOUT=true and the payout wallet in the server environment, see docs/DEPLOY-VPS.md):
-    // a request whose payout (after the fee) is up to 0.075 TON is sent by the server; bigger ones wait for you.
-    // The daily cap is the most the server may send by itself in one day; above it requests wait for you.
-    'withdrawal.auto_payout_max_ton': 0.075,
-    'withdrawal.auto_payout_daily_cap_ton': 10,
-    'withdrawal.notice_en': 'Small payouts are sent automatically within minutes, larger ones are checked by hand, usually within 24 hours. The network fee is deducted from the amount.',
-    'withdrawal.notice_ru': 'Небольшие выплаты отправляются автоматически за несколько минут, крупные проверяются вручную, обычно в течение 24 часов. Комиссия сети вычитается из суммы.',
-
-    // ---- tasks, risk, retention
-    'tasks.link_min_seconds': 5,
-    'risk.hold_threshold': 30,
-    'retention.logs_days': 90,
-    'retention.ad_views_days': 30,
-
-    // ---- the bot (UTC; the audience is mostly UTC+3..+5, so 20:00-04:00 UTC is the local night)
-    'notifications.daily_cap': 5,
-    'notifications.default_hour_utc': 9,
-    'notifications.warn_hours': [6, 1],
-    'notifications.quiet_hours': { from: 20, to: 4 },
-    'notifications.collect_reminder_hours': 6,
-    'notifications.idle_hours': 12,
-    'notifications.booster_expiry_days': [3, 1],
-    'notifications.card_upgrade_ready': true,
-    'notifications.chest_round_hours': 6,
+  // ---- games
+  s.gifts = rows('gifts').map((r) => ({ key: r.key, name_en: r.name_en, name_ru: r.name_ru, star_value: r.star_value }))
+  s['spin.tiers'] = rows('spin_tiers').map((r) => ({ tier: r.tier, price_stars: r.price_stars, name_en: r.name_en, name_ru: r.name_ru }))
+  const odds = {}
+  for (const t of s['spin.tiers']) odds[t.tier] = {}
+  for (const r of rows('spin_odds')) {
+    for (const [col, tier] of [['t1', 'TIER_1'], ['t2', 'TIER_2'], ['t3', 'TIER_3'], ['t4', 'TIER_4'], ['t5', 'TIER_5']]) {
+      if (num(r[col]) > 0) odds[tier][r.prize] = (odds[tier][r.prize] ?? 0) + num(r[col])
+    }
   }
+  s['spin.odds'] = odds
+  s['chest.pool'] = rows('chest_pool').map((r) => (r.type === 'gift' ? { type: 'gift', gift: r.gift, weight: r.weight } : { type: r.type, value: r.amount, weight: r.weight }))
 
   // values only the owner knows: they are added when given, never invented
   if (wallet) s['topup.ton.wallet_address'] = wallet
@@ -240,63 +100,27 @@ export function buildSettings({ tonUsd, wallet, blockIds, links } = {}) {
   if (links?.news) s['links.news'] = links.news
   if (links?.faq) s['links.faq'] = links.faq
 
-  return { settings: s, derived: { coinsPerTon, starsPerTon, spinTiers, tonUsd } }
+  return {
+    settings: s,
+    derived: { coinsPerTon: s['withdrawal.coins_per_ton'], starsPerTon: s['topup.ton.stars_per_ton'], spinTiers: s['spin.tiers'], tonUsd: s['withdrawal.coins_per_ton'] * ASSUMPTIONS.coinUsd },
+  }
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Spin odds. Every tier has the same eight gifts; a higher tier tilts the odds toward the valuable ones. The tilt is found
-// by bisection so that the expected value of a spin is exactly `rtp` x the tier price (what the tier gives back on average).
-// ---------------------------------------------------------------------------------------------------------------------
-function tuneSpin(gifts, tiers) {
-  const base = { apple: 40, cat: 28, panda: 18, watch: 8, ring: 4, cap: 1.5, heart: 0.4, frog: 0.1 }
-  const out = {}
-  for (const t of tiers) {
-    const target = t.rtp * t.price_stars
-    const ev = (beta) => {
-      const w = gifts.map((g) => base[g.key] * g.star_value ** beta)
-      const sum = w.reduce((a, b) => a + b, 0)
-      return gifts.reduce((a, g, i) => a + (w[i] / sum) * g.star_value, 0)
-    }
-    let lo = -2, hi = 3
-    for (let i = 0; i < 80; i++) {
-      const mid = (lo + hi) / 2
-      if (ev(mid) < target) lo = mid
-      else hi = mid
-    }
-    const beta = (lo + hi) / 2
-    const w = gifts.map((g) => base[g.key] * g.star_value ** beta)
-    const sum = w.reduce((a, b) => a + b, 0)
-    out[t.tier] = Object.fromEntries(gifts.map((g, i) => [g.key, Math.max(1, Math.round((w[i] / sum) * 100000))]))
-  }
-  return out
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// The wheel without Telegram gifts. Every gift becomes the same number of stars (an Apple is 15 stars, a Frog 10,000), and
-// the three cheapest, the ones that come up most often, are also paid as coins of equal worth, 60% stars and 40% coins.
-// The conversion is the payout guard's own rate: 1 star = 10,000 coins (guard.coin_value_stars 0.0001), and it is also what a
-// gift costs you (about $0.013 a star, and 10,000 coins are $0.0125). So the return of every tier stays exactly what it was.
-// ---------------------------------------------------------------------------------------------------------------------
-export const WHEEL_PAYS_GIFTS = false
-const COINS_PER_STAR = 10000
-function cashOdds(odds, gifts) {
-  const value = Object.fromEntries(gifts.map((g) => [g.key, g.star_value]))
-  const alsoCoins = new Set(['apple', 'cat', 'panda'])
-  const out = {}
-  for (const [tier, row] of Object.entries(odds)) {
-    out[tier] = {}
-    for (const [key, w] of Object.entries(row)) {
-      const v = value[key]
-      if (alsoCoins.has(key)) {
-        const stars = Math.max(1, Math.round(w * 0.6))
-        out[tier][`stars:${v}`] = stars
-        out[tier][`coins:${v * COINS_PER_STAR}`] = Math.max(1, w - stars)
-      } else {
-        out[tier][`stars:${v}`] = w
-      }
-    }
-  }
-  return out
+/** The starter tasks of the answers file, in the shape of the admin API. */
+export function starterTasks() {
+  return rows('starter_tasks').map((r) => ({
+    category: r.category || 'MAIN',
+    type: r.type,
+    titleEn: r.title_en,
+    titleRu: r.title_ru,
+    descEn: r.desc_en,
+    descRu: r.desc_ru,
+    ...(r.type === 'CHANNEL_JOIN' && r.channel ? { channelUsername: r.channel } : {}),
+    required: Math.max(1, num(r.required)),
+    rewardCoins: num(r.coins),
+    rewardStars: num(r.stars),
+    repeat: r.repeat || 'ONCE',
+  }))
 }
 
 /** What one prize of the odds table is worth in stars: a gift key, or "coins:500" / "stars:25" (a coin counts for guard.coin_value_stars). */

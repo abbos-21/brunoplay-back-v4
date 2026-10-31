@@ -1,0 +1,1708 @@
+{
+  "file": "BrunoPlay economy answers",
+  "version": 1,
+  "filledAt": "2026-10-30T17:57:05.916Z",
+  "howToRead": "settings: one entry per single value (null = not decided). tables: lists of rows; a variable table keeps only the rows that were filled in. Yes/No are true/false. undecided lists required values that are still empty.",
+  "settings": [
+    {
+      "key": "withdrawal.coins_per_ton",
+      "label": "Coins for 1 TON",
+      "unit": "coins",
+      "value": 1160000
+    },
+    {
+      "key": "withdrawal.fee_ton",
+      "label": "Withdrawal fee",
+      "unit": "TON",
+      "value": 0
+    },
+    {
+      "key": "topup.telegram.ratio",
+      "label": "Game stars per 1 Telegram Star",
+      "unit": "stars",
+      "value": 1
+    },
+    {
+      "key": "topup.telegram.bonus_percent",
+      "label": "Bonus on Telegram Stars payments",
+      "unit": "%",
+      "value": 0
+    },
+    {
+      "key": "topup.ton.stars_per_ton",
+      "label": "Game stars for 1 TON",
+      "unit": "stars",
+      "value": 70
+    },
+    {
+      "key": "topup.ton.bonus_percent",
+      "label": "Bonus on TON payments",
+      "unit": "%",
+      "value": 10
+    },
+    {
+      "key": "topup.ton.confirmations",
+      "label": "Wait before crediting a TON payment",
+      "unit": "seconds",
+      "value": 10
+    },
+    {
+      "key": "topup.ton.order_expiry_minutes",
+      "label": "TON order lifetime",
+      "unit": "minutes",
+      "value": 30
+    },
+    {
+      "key": "withdrawal.min_coins",
+      "label": "Minimum per request",
+      "unit": "coins",
+      "value": 20000
+    },
+    {
+      "key": "withdrawal.max_coins",
+      "label": "Maximum per request",
+      "unit": "coins",
+      "value": 400000
+    },
+    {
+      "key": "withdrawal.daily_limit_coins",
+      "label": "Maximum per day",
+      "unit": "coins",
+      "value": 400000
+    },
+    {
+      "key": "withdrawal.total_limit_coins",
+      "label": "Maximum in total, ever",
+      "unit": "coins",
+      "value": 100000000
+    },
+    {
+      "key": "withdrawal.cooldown_hours",
+      "label": "Time between two requests",
+      "unit": "hours",
+      "value": 48
+    },
+    {
+      "key": "withdrawal.min_level",
+      "label": "Minimum player level",
+      "unit": "level",
+      "value": 2
+    },
+    {
+      "key": "withdrawal.min_account_days",
+      "label": "Minimum account age",
+      "unit": "days",
+      "value": 0
+    },
+    {
+      "key": "withdrawal.auto_payout_max_ton",
+      "label": "Largest automatic payout",
+      "unit": "TON",
+      "value": 0.075
+    },
+    {
+      "key": "withdrawal.auto_payout_daily_cap_ton",
+      "label": "Daily cap of automatic payouts",
+      "unit": "TON",
+      "value": 10
+    },
+    {
+      "key": "withdrawal.notice_en",
+      "label": "Notice (English)",
+      "value": "Small payouts are sent automatically within minutes, larger ones are checked by hand, usually within 24 hours. The network fee is deducted from the amount."
+    },
+    {
+      "key": "withdrawal.notice_ru",
+      "label": "Notice (Russian)",
+      "value": "Небольшие выплаты отправляются автоматически за несколько минут, крупные проверяются вручную, обычно в течение 24 часов. Комиссия сети вычитается из суммы."
+    },
+    {
+      "key": "fishing.collect_min_percent",
+      "label": "Minimum tank fill to collect",
+      "unit": "%",
+      "value": 10
+    },
+    {
+      "key": "boosters.duration_days",
+      "label": "Booster length",
+      "unit": "days",
+      "value": 30
+    },
+    {
+      "key": "boosters.autocollect.price_stars",
+      "label": "Autocollect price",
+      "unit": "stars",
+      "value": 100
+    },
+    {
+      "key": "boosters.mining.price_stars",
+      "label": "Mining booster price",
+      "unit": "stars",
+      "value": 50
+    },
+    {
+      "key": "boosters.mining.multiplier",
+      "label": "Mining booster strength",
+      "unit": "times",
+      "value": 1.5
+    },
+    {
+      "key": "combo.coins_per_correct",
+      "label": "Combo: coins per correct picture",
+      "unit": "coins",
+      "value": 300
+    },
+    {
+      "key": "ads.required",
+      "label": "Ads are required",
+      "value": true
+    },
+    {
+      "key": "ads.view_expiry_seconds",
+      "label": "Ad proof lifetime",
+      "unit": "seconds",
+      "value": 300
+    },
+    {
+      "key": "ads.max_failed_loads",
+      "label": "Failed ad loads before the fallback",
+      "unit": "times",
+      "value": 3
+    },
+    {
+      "key": "ads.fallback_minutes",
+      "label": "Fallback window",
+      "unit": "minutes",
+      "value": 10
+    },
+    {
+      "key": "ads.bonus.coins",
+      "label": "Coins for one bonus ad",
+      "unit": "coins",
+      "value": 0
+    },
+    {
+      "key": "ads.bonus.max_per_day",
+      "label": "Bonus ads per day",
+      "unit": "per day",
+      "value": 0
+    },
+    {
+      "key": "ads.combo_extra.max_per_day",
+      "label": "Extra combo tries per day",
+      "unit": "per day",
+      "value": 2
+    },
+    {
+      "key": "ads.ride_free.max_per_day",
+      "label": "Free Ride runs per day",
+      "unit": "per day",
+      "value": 1
+    },
+    {
+      "key": "ads.interstitial.enabled",
+      "label": "Interstitial ads on",
+      "value": false
+    },
+    {
+      "key": "ads.interstitial.interval_seconds",
+      "label": "Minimum gap between two interstitials",
+      "unit": "seconds",
+      "value": 180
+    },
+    {
+      "key": "ads.interstitial.first_after_seconds",
+      "label": "No interstitial after opening the app",
+      "unit": "seconds",
+      "value": 120
+    },
+    {
+      "key": "ads.task.enabled",
+      "label": "Sponsored task (Adsgram) on",
+      "value": false
+    },
+    {
+      "key": "ads.task.reward_coins",
+      "label": "Coins for a sponsored task",
+      "unit": "coins",
+      "value": 50
+    },
+    {
+      "key": "ads.task.interval_minutes",
+      "label": "Time between two sponsored tasks",
+      "unit": "minutes",
+      "value": 480
+    },
+    {
+      "key": "ads.monetag.task_enabled",
+      "label": "Monetag partner-offer card on",
+      "value": false
+    },
+    {
+      "key": "ads.monetag.task_coins",
+      "label": "Coins for a Monetag offer",
+      "unit": "coins",
+      "value": 0
+    },
+    {
+      "key": "ads.monetag.task_interval_minutes",
+      "label": "Time between two Monetag offers",
+      "unit": "minutes",
+      "value": 480
+    },
+    {
+      "key": "ads.tads.wait_seconds",
+      "label": "TADS wait",
+      "unit": "seconds",
+      "value": 10
+    },
+    {
+      "key": "ads.monetag.wait_seconds",
+      "label": "Monetag wait",
+      "unit": "seconds",
+      "value": 15
+    },
+    {
+      "key": "referral.mining_percent",
+      "label": "Share of the friend's mining",
+      "unit": "%",
+      "value": 0
+    },
+    {
+      "key": "referral.mining_cap_per_friend",
+      "label": "Cap of that share per friend",
+      "unit": "coins",
+      "value": 0
+    },
+    {
+      "key": "referral.topup_percent",
+      "label": "Share of the friend's top-ups",
+      "unit": "%",
+      "value": 10
+    },
+    {
+      "key": "referral.default_join_bonus",
+      "label": "Friend's join bonus",
+      "unit": "coins",
+      "value": 0
+    },
+    {
+      "key": "tasks.link_min_seconds",
+      "label": "Link task minimum time",
+      "unit": "seconds",
+      "value": 5
+    },
+    {
+      "key": "guard.max_payout_ratio",
+      "label": "Maximum payout ratio",
+      "unit": "ratio",
+      "value": 0.75
+    },
+    {
+      "key": "guard.window_hours",
+      "label": "Guard window",
+      "unit": "hours",
+      "value": 72
+    },
+    {
+      "key": "guard.coin_value_stars",
+      "label": "Value of one coin in stars",
+      "unit": "stars",
+      "value": 0.0001
+    },
+    {
+      "key": "spin.publish_odds",
+      "label": "Show the odds to players",
+      "value": false
+    },
+    {
+      "key": "spin.winners_min_value",
+      "label": "Smallest win shown in the winners list",
+      "unit": "stars",
+      "value": 250
+    },
+    {
+      "key": "chest.round_cost_stars",
+      "label": "Chest round price",
+      "unit": "stars",
+      "value": 50
+    },
+    {
+      "key": "chest.picks_per_round",
+      "label": "Chests per round",
+      "unit": "number",
+      "value": 3
+    },
+    {
+      "key": "chest.round_expiry_hours",
+      "label": "Unfinished round lifetime",
+      "unit": "hours",
+      "value": 0
+    },
+    {
+      "key": "ride.run_cost_stars",
+      "label": "Ride run price",
+      "unit": "stars",
+      "value": 2
+    },
+    {
+      "key": "ride.max_coins_per_day",
+      "label": "Most coins from Ride per day",
+      "unit": "coins",
+      "value": 4000
+    },
+    {
+      "key": "ride.max_coins_per_second",
+      "label": "Anti-cheat: coins per second",
+      "unit": "coins/s",
+      "value": 8
+    },
+    {
+      "key": "ride.max_points_per_second",
+      "label": "Anti-cheat: points per second",
+      "unit": "points/s",
+      "value": 70
+    },
+    {
+      "key": "ride.min_duration_seconds",
+      "label": "Anti-cheat: shortest run",
+      "unit": "seconds",
+      "value": 3
+    },
+    {
+      "key": "ride.max_duration_seconds",
+      "label": "Longest run that can be saved",
+      "unit": "seconds",
+      "value": 900
+    },
+    {
+      "key": "ride.spawn_delay_seconds",
+      "label": "Obstacle delay",
+      "unit": "seconds",
+      "value": 3
+    },
+    {
+      "key": "notifications.daily_cap",
+      "label": "Most messages per player per day",
+      "unit": "number",
+      "value": 5
+    },
+    {
+      "key": "notifications.default_hour_utc",
+      "label": "Default hour for 'ready' messages",
+      "unit": "hour UTC",
+      "value": 9
+    },
+    {
+      "key": "notifications.warn_hours",
+      "label": "Daily reset warnings",
+      "unit": "hours",
+      "value": [
+        6,
+        1
+      ]
+    },
+    {
+      "key": "notifications.quiet_hours.from",
+      "label": "Quiet hours start",
+      "unit": "hour UTC",
+      "value": 20
+    },
+    {
+      "key": "notifications.quiet_hours.to",
+      "label": "Quiet hours end",
+      "unit": "hour UTC",
+      "value": 4
+    },
+    {
+      "key": "notifications.collect_reminder_hours",
+      "label": "Collect reminder delay",
+      "unit": "hours",
+      "value": 6
+    },
+    {
+      "key": "notifications.idle_hours",
+      "label": "'Start fishing' reminder delay",
+      "unit": "hours",
+      "value": 12
+    },
+    {
+      "key": "notifications.booster_expiry_days",
+      "label": "Booster ending warnings",
+      "unit": "days",
+      "value": [
+        3,
+        1
+      ]
+    },
+    {
+      "key": "notifications.card_upgrade_ready",
+      "label": "Tell when an upgrade is affordable",
+      "value": true
+    },
+    {
+      "key": "notifications.chest_round_hours",
+      "label": "Chest round reminder",
+      "unit": "hours",
+      "value": 6
+    },
+    {
+      "key": "risk.hold_threshold",
+      "label": "Risk score that puts an account on hold",
+      "unit": "points",
+      "value": 30
+    },
+    {
+      "key": "retention.logs_days",
+      "label": "Keep technical logs",
+      "unit": "days",
+      "value": 90
+    },
+    {
+      "key": "retention.ad_views_days",
+      "label": "Keep old ad views",
+      "unit": "days",
+      "value": 30
+    },
+    {
+      "key": "links.support",
+      "label": "Support link",
+      "value": "https://t.me/brunoplay_support"
+    },
+    {
+      "key": "links.news",
+      "label": "News link",
+      "value": "https://t.me/brunoplay_news"
+    },
+    {
+      "key": "links.faq",
+      "label": "FAQ link",
+      "value": "https://t.me/brunoplay_chat/2"
+    }
+  ],
+  "tables": {
+    "topup_packs": {
+      "title": "Star packs shown in the top-up panel",
+      "columns": {
+        "stars": "Pack size (game stars)"
+      },
+      "rows": [
+        {
+          "stars": 100
+        },
+        {
+          "stars": 250
+        },
+        {
+          "stars": 500
+        },
+        {
+          "stars": 1000
+        },
+        {
+          "stars": 2500
+        },
+        {
+          "stars": 5000
+        },
+        {
+          "stars": 10000
+        },
+        {
+          "stars": 25000
+        }
+      ]
+    },
+    "cards": {
+      "title": "Card levels",
+      "columns": {
+        "level": "Level",
+        "tank": "Tank size (coins)",
+        "hours": "Hours to fill the tank",
+        "speed": "Mining speed (coins/second)",
+        "mining_cost": "MINING: cost to reach this level",
+        "mining_cur": "MINING: currency",
+        "mining_other": "MINING needs: the other card at level",
+        "mining_friends": "MINING needs: friends invited",
+        "mining_plevel": "MINING needs: player level",
+        "cap_cost": "CAPACITY: cost to reach this level",
+        "cap_cur": "CAPACITY: currency",
+        "cap_other": "CAPACITY needs: the other card at level",
+        "cap_friends": "CAPACITY needs: friends invited",
+        "cap_plevel": "CAPACITY needs: player level"
+      },
+      "rows": [
+        {
+          "level": 1,
+          "tank": 60,
+          "hours": 4
+        },
+        {
+          "level": 2,
+          "tank": 80,
+          "hours": 4,
+          "mining_cost": 200,
+          "mining_cur": "COIN",
+          "mining_other": 1,
+          "mining_friends": null,
+          "mining_plevel": 1,
+          "cap_cost": 200,
+          "cap_cur": "COIN",
+          "cap_other": 1,
+          "cap_friends": null,
+          "cap_plevel": 1
+        },
+        {
+          "level": 3,
+          "tank": 105,
+          "hours": 3.5,
+          "mining_cost": 350,
+          "mining_cur": "COIN",
+          "mining_other": 2,
+          "mining_friends": null,
+          "mining_plevel": 2,
+          "cap_cost": 350,
+          "cap_cur": "COIN",
+          "cap_other": 2,
+          "cap_friends": null,
+          "cap_plevel": 2
+        },
+        {
+          "level": 4,
+          "tank": 140,
+          "hours": 3.5,
+          "mining_cost": 600,
+          "mining_cur": "COIN",
+          "mining_other": 3,
+          "mining_friends": 1,
+          "mining_plevel": 3,
+          "cap_cost": 600,
+          "cap_cur": "COIN",
+          "cap_other": 3,
+          "cap_friends": 1,
+          "cap_plevel": 3
+        },
+        {
+          "level": 5,
+          "tank": 180,
+          "hours": 3,
+          "mining_cost": 1000,
+          "mining_cur": "COIN",
+          "mining_other": 4,
+          "mining_friends": null,
+          "mining_plevel": 4,
+          "cap_cost": 1000,
+          "cap_cur": "COIN",
+          "cap_other": 4,
+          "cap_friends": null,
+          "cap_plevel": 4
+        },
+        {
+          "level": 6,
+          "tank": 210,
+          "hours": 3,
+          "mining_cost": 1600,
+          "mining_cur": "COIN",
+          "mining_other": 5,
+          "mining_friends": 2,
+          "mining_plevel": 5,
+          "cap_cost": 1600,
+          "cap_cur": "COIN",
+          "cap_other": 5,
+          "cap_friends": 2,
+          "cap_plevel": 5
+        },
+        {
+          "level": 7,
+          "tank": 250,
+          "hours": 2.5,
+          "mining_cost": 2500,
+          "mining_cur": "COIN",
+          "mining_other": 6,
+          "mining_friends": null,
+          "mining_plevel": 6,
+          "cap_cost": 2500,
+          "cap_cur": "COIN",
+          "cap_other": 6,
+          "cap_friends": null,
+          "cap_plevel": 6
+        },
+        {
+          "level": 8,
+          "tank": 300,
+          "hours": 2.5,
+          "mining_cost": 3800,
+          "mining_cur": "COIN",
+          "mining_other": 7,
+          "mining_friends": null,
+          "mining_plevel": 7,
+          "cap_cost": 3800,
+          "cap_cur": "COIN",
+          "cap_other": 7,
+          "cap_friends": null,
+          "cap_plevel": 7
+        },
+        {
+          "level": 9,
+          "tank": 350,
+          "hours": 2,
+          "mining_cost": 5600,
+          "mining_cur": "COIN",
+          "mining_other": 8,
+          "mining_friends": null,
+          "mining_plevel": 8,
+          "cap_cost": 5600,
+          "cap_cur": "COIN",
+          "cap_other": 8,
+          "cap_friends": null,
+          "cap_plevel": 8
+        },
+        {
+          "level": 10,
+          "tank": 400,
+          "hours": 2,
+          "mining_cost": 8000,
+          "mining_cur": "COIN",
+          "mining_other": 9,
+          "mining_friends": 3,
+          "mining_plevel": 9,
+          "cap_cost": 8000,
+          "cap_cur": "COIN",
+          "cap_other": 9,
+          "cap_friends": 3,
+          "cap_plevel": 9
+        }
+      ]
+    },
+    "level_rewards": {
+      "title": "Reward when the player reaches a level",
+      "columns": {
+        "level": "Level reached",
+        "coins": "Coins reward",
+        "stars": "Stars reward"
+      },
+      "rows": [
+        {
+          "level": 2,
+          "coins": 300,
+          "stars": null
+        },
+        {
+          "level": 3,
+          "coins": 500,
+          "stars": null
+        },
+        {
+          "level": 4,
+          "coins": 1000,
+          "stars": null
+        },
+        {
+          "level": 5,
+          "coins": 2000,
+          "stars": null
+        },
+        {
+          "level": 6,
+          "coins": 4000,
+          "stars": null
+        },
+        {
+          "level": 7,
+          "coins": 6000,
+          "stars": null
+        },
+        {
+          "level": 8,
+          "coins": 8000,
+          "stars": null
+        },
+        {
+          "level": 9,
+          "coins": 10000,
+          "stars": null
+        },
+        {
+          "level": 10,
+          "coins": 12000,
+          "stars": null
+        }
+      ]
+    },
+    "streak": {
+      "title": "Daily streak",
+      "columns": {
+        "day": "Day",
+        "coins": "Coins"
+      },
+      "rows": [
+        {
+          "day": 1,
+          "coins": 50
+        },
+        {
+          "day": 2,
+          "coins": 75
+        },
+        {
+          "day": 3,
+          "coins": 150
+        },
+        {
+          "day": 4,
+          "coins": 250
+        },
+        {
+          "day": 5,
+          "coins": 400
+        },
+        {
+          "day": 6,
+          "coins": 600
+        },
+        {
+          "day": 7,
+          "coins": 800
+        },
+        {
+          "day": 8,
+          "coins": 1000
+        },
+        {
+          "day": 9,
+          "coins": 1200
+        },
+        {
+          "day": 10,
+          "coins": 1500
+        }
+      ]
+    },
+    "placements": {
+      "title": "Where ads are shown (placements)",
+      "columns": {
+        "name": "Placement",
+        "what": "What it is",
+        "on": "Shown?"
+      },
+      "rows": [
+        {
+          "name": "FISHING_START",
+          "what": "Ad before a fishing cycle starts",
+          "on": "Yes"
+        },
+        {
+          "name": "COLLECT",
+          "what": "Ad when collecting the tank",
+          "on": "Yes"
+        },
+        {
+          "name": "BONUS_COINS",
+          "what": "The bonus-ad button on the home screen",
+          "on": "Yes"
+        },
+        {
+          "name": "DOUBLE_STREAK",
+          "what": "Ad to double the daily streak reward",
+          "on": "Yes"
+        },
+        {
+          "name": "DOUBLE_COMBO",
+          "what": "Ad to double the combo reward",
+          "on": "Yes"
+        },
+        {
+          "name": "COMBO_EXTRA",
+          "what": "Ad to get an extra combo try",
+          "on": "Yes"
+        },
+        {
+          "name": "RIDE_FREE",
+          "what": "Ad to get a free Ride run",
+          "on": "Yes"
+        },
+        {
+          "name": "TASK_ADS",
+          "what": "Ads used by the 'watch ads' tasks",
+          "on": "Yes"
+        }
+      ]
+    },
+    "networks": {
+      "title": "Ad networks",
+      "columns": {
+        "name": "Network",
+        "what": "Note",
+        "priority": "Priority (1, 2, 3)",
+        "on": "On?"
+      },
+      "rows": [
+        {
+          "name": "adsgram",
+          "what": "Adsgram",
+          "priority": 1,
+          "on": "Yes"
+        },
+        {
+          "name": "tads",
+          "what": "TADS (no ads available at the moment)",
+          "priority": null,
+          "on": "No"
+        },
+        {
+          "name": "monetag",
+          "what": "Monetag",
+          "priority": null,
+          "on": "No"
+        }
+      ]
+    },
+    "referral_levels": {
+      "title": "Inviter's reward when a friend reaches a level",
+      "columns": {
+        "level": "Friend reaches level",
+        "coins": "Coins to the inviter"
+      },
+      "rows": [
+        {
+          "level": 2,
+          "coins": 1500
+        },
+        {
+          "level": 3,
+          "coins": 2500
+        },
+        {
+          "level": 4,
+          "coins": 4000
+        },
+        {
+          "level": 5,
+          "coins": 6000
+        },
+        {
+          "level": 6,
+          "coins": 9000
+        },
+        {
+          "level": 7,
+          "coins": 13000
+        },
+        {
+          "level": 8,
+          "coins": 18000
+        },
+        {
+          "level": 9,
+          "coins": 25000
+        },
+        {
+          "level": 10,
+          "coins": 35000
+        }
+      ]
+    },
+    "starter_tasks": {
+      "title": "Starter tasks",
+      "columns": {
+        "title_en": "Title (English)",
+        "title_ru": "Title (Russian)",
+        "desc_en": "Description (English)",
+        "desc_ru": "Description (Russian)",
+        "type": "Type",
+        "channel": "Channel/chat @name (CHANNEL_JOIN only)",
+        "required": "How many needed (friends / ads)",
+        "coins": "Reward coins",
+        "stars": "Reward stars",
+        "repeat": "Repeat",
+        "category": "Category"
+      },
+      "rows": [
+        {
+          "title_en": "Join the BrunoPlay channel",
+          "title_ru": "Присоединяйтесь к каналу BrunoPlay",
+          "desc_en": "Subscribe to our channel for news and giveaways.",
+          "desc_ru": "Подпишитесь на наш канал, чтобы не пропустить новости и розыгрыши.",
+          "type": "CHANNEL_JOIN",
+          "channel": "@brunoplay_news",
+          "required": 0,
+          "coins": 200,
+          "stars": 0,
+          "repeat": "ONCE",
+          "category": "MAIN"
+        },
+        {
+          "title_en": "Join the BrunoPlay chat",
+          "title_ru": "Присоединяйтесь к чату BrunoPlay",
+          "desc_en": "Chat with other players.",
+          "desc_ru": "Общайтесь с другими игроками.",
+          "type": "CHANNEL_JOIN",
+          "channel": "@brunoplay_chat",
+          "required": 0,
+          "coins": 200,
+          "stars": 0,
+          "repeat": "ONCE",
+          "category": "MAIN"
+        },
+        {
+          "title_en": "Invite 3 friends",
+          "title_ru": "Пригласите 3 друзей",
+          "desc_en": "A friend counts once they reach level 2 or top up the game.",
+          "desc_ru": "Друг засчитывается, как только достигает 2-го уровня или пополняет игру.",
+          "type": "INVITE_FRIENDS",
+          "channel": null,
+          "required": 3,
+          "coins": 1000,
+          "stars": 1,
+          "repeat": "ONCE",
+          "category": "MAIN"
+        },
+        {
+          "title_en": "Invite 10 friends",
+          "title_ru": "Пригласите 10 друзей",
+          "desc_en": "A friend counts once they reach level 2 or top up the game.",
+          "desc_ru": "Друг засчитывается, как только достигает 2-го уровня или пополняет игру.",
+          "type": "INVITE_FRIENDS",
+          "channel": null,
+          "required": 10,
+          "coins": 3000,
+          "stars": 3,
+          "repeat": "ONCE",
+          "category": "MAIN"
+        },
+        {
+          "title_en": "Invite 25 friends",
+          "title_ru": "Пригласите 25 друзей",
+          "desc_en": "A friend counts once they reach level 2 or top up the game.",
+          "desc_ru": "Друг засчитывается, как только достигает 2-го уровня или пополняет игру.",
+          "type": "INVITE_FRIENDS",
+          "channel": null,
+          "required": 25,
+          "coins": 10000,
+          "stars": 10,
+          "repeat": "ONCE",
+          "category": "MAIN"
+        },
+        {
+          "title_en": "Invite 50 friends",
+          "title_ru": "Пригласите 50 друзей",
+          "desc_en": "A friend counts once they reach level 2 or top up the game.",
+          "desc_ru": "Друг засчитывается, как только достигает 2-го уровня или пополняет игру.",
+          "type": "INVITE_FRIENDS",
+          "channel": null,
+          "required": 50,
+          "coins": 20000,
+          "stars": 20,
+          "repeat": "ONCE",
+          "category": "MAIN"
+        }
+      ]
+    },
+    "gifts": {
+      "title": "Gifts",
+      "columns": {
+        "key": "Gift key",
+        "name_en": "Name (English)",
+        "name_ru": "Name (Russian)",
+        "star_value": "Value (stars)"
+      },
+      "rows": [
+        {
+          "key": "icecream1",
+          "name_en": "Ice Cream",
+          "name_ru": "Мороженое",
+          "star_value": 412
+        },
+        {
+          "key": "icecream2",
+          "name_en": "Ice Cream",
+          "name_ru": "Мороженое",
+          "star_value": 467
+        },
+        {
+          "key": "icecream3",
+          "name_en": "Ice Cream",
+          "name_ru": "Мороженое",
+          "star_value": 543
+        },
+        {
+          "key": "lolpop1",
+          "name_en": "Lol Pop",
+          "name_ru": "Лолли-поп",
+          "star_value": 452
+        },
+        {
+          "key": "lolpop2",
+          "name_en": "Lol Pop",
+          "name_ru": "Лолли-поп",
+          "star_value": 517
+        },
+        {
+          "key": "lolpop3",
+          "name_en": "Lol Pop",
+          "name_ru": "Лолли-поп",
+          "star_value": 567
+        },
+        {
+          "key": "freshsocks1",
+          "name_en": "Fresh Socks",
+          "name_ru": "Свежие носки",
+          "star_value": 519
+        },
+        {
+          "key": "freshsocks2",
+          "name_en": "Fresh Socks",
+          "name_ru": "Свежие носки",
+          "star_value": 561
+        },
+        {
+          "key": "freshsocks3",
+          "name_en": "Fresh Socks",
+          "name_ru": "Свежие носки",
+          "star_value": 614
+        },
+        {
+          "key": "gingercookie1",
+          "name_en": "Ginger Cookie",
+          "name_ru": "Имбирное печенье",
+          "star_value": 535
+        },
+        {
+          "key": "gingercookie2",
+          "name_en": "Ginger Cookie",
+          "name_ru": "Имбирное печенье",
+          "star_value": 578
+        },
+        {
+          "key": "gingercookie3",
+          "name_en": "Ginger Cookie",
+          "name_ru": "Имбирное печенье",
+          "star_value": 634
+        },
+        {
+          "key": "libertyfigure1",
+          "name_en": "Liberty Figure",
+          "name_ru": "Фигура Свободы",
+          "star_value": 574
+        },
+        {
+          "key": "libertyfigure2",
+          "name_en": "Liberty Figure",
+          "name_ru": "Фигура Свободы",
+          "star_value": 636
+        },
+        {
+          "key": "libertyfigure3",
+          "name_en": "Liberty Figure",
+          "name_ru": "Фигура Свободы",
+          "star_value": 698
+        },
+        {
+          "key": "inputkey",
+          "name_en": "Input Key",
+          "name_ru": "Ключ ввода",
+          "star_value": 663
+        },
+        {
+          "key": "witchhat",
+          "name_en": "Witch Hat",
+          "name_ru": "Ведьминская шляпа",
+          "star_value": 944
+        },
+        {
+          "key": "evileye",
+          "name_en": "Evil Eye",
+          "name_ru": "Дурной глаз",
+          "star_value": 865
+        },
+        {
+          "key": "tophat",
+          "name_en": "Top Hat",
+          "name_ru": "Цилиндр",
+          "star_value": 1040
+        },
+        {
+          "key": "chillflame",
+          "name_en": "Chill Flame",
+          "name_ru": "Ледяное Пламя",
+          "star_value": 405
+        },
+        {
+          "key": "eternalcandle",
+          "name_en": "Eternal Candle",
+          "name_ru": "Вечная Свеча",
+          "star_value": 651
+        },
+        {
+          "key": "jinglebells",
+          "name_en": "Jingle Bells",
+          "name_ru": "Бубенчики",
+          "star_value": 1097
+        },
+        {
+          "key": "snowglobe",
+          "name_en": "Snow Globe",
+          "name_ru": "Снежный Шар",
+          "star_value": 712
+        },
+        {
+          "key": "madpumpkin",
+          "name_en": "Mad Pumpkin",
+          "name_ru": "Безумная Тыква",
+          "star_value": 1507
+        },
+        {
+          "key": "luckylocket",
+          "name_en": "Lucky Locket",
+          "name_ru": "Счастливый Медальон",
+          "star_value": 1601
+        },
+        {
+          "key": "electricskull",
+          "name_en": "Electric Skull",
+          "name_ru": "Электрический Череп",
+          "star_value": 3005
+        },
+        {
+          "key": "finepen",
+          "name_en": "Fine Pen",
+          "name_ru": "Хорошая Ручка",
+          "star_value": 868
+        },
+        {
+          "key": "sakuraflower",
+          "name_en": "Sakura Flower",
+          "name_ru": "Цветок Сакуры",
+          "star_value": 1135
+        },
+        {
+          "key": "trappedheart",
+          "name_en": "Trapped Heart",
+          "name_ru": "Сердце в Ловушке",
+          "star_value": 1567
+        },
+        {
+          "key": "eternalrose",
+          "name_en": "Eternal Rose",
+          "name_ru": "Вечная Роза",
+          "star_value": 2850
+        },
+        {
+          "key": "coffin",
+          "name_en": "Coffin",
+          "name_ru": "Гроб",
+          "star_value": 3647
+        },
+        {
+          "key": "bondedring",
+          "name_en": "Bonded Ring",
+          "name_ru": "Скреплённое Кольцо",
+          "star_value": 4570
+        },
+        {
+          "key": "recordplayer",
+          "name_en": "Record Player",
+          "name_ru": "Проигрыватель",
+          "star_value": 1254
+        },
+        {
+          "key": "kissedfrog",
+          "name_en": "Kissed Frog",
+          "name_ru": "Поцелованная Лягушка",
+          "star_value": 5012
+        },
+        {
+          "key": "voodoodoll",
+          "name_en": "Voodoo Doll",
+          "name_ru": "Кукла Вуду",
+          "star_value": 3870
+        },
+        {
+          "key": "astralshard",
+          "name_en": "Astral Shard",
+          "name_ru": "Астральный Осколок",
+          "star_value": 10510
+        },
+        {
+          "key": "gemsignet",
+          "name_en": "Gem Signet",
+          "name_ru": "Перстень с Камнем",
+          "star_value": 6015
+        }
+      ]
+    },
+    "spin_tiers": {
+      "title": "Spin tiers",
+      "columns": {
+        "tier": "Tier",
+        "name_en": "Name (English)",
+        "name_ru": "Name (Russian)",
+        "price_stars": "Price per spin (stars)"
+      },
+      "rows": [
+        {
+          "tier": "TIER_1",
+          "name_en": "Bronze",
+          "name_ru": "Бронза",
+          "price_stars": 30
+        },
+        {
+          "tier": "TIER_2",
+          "name_en": "Silver",
+          "name_ru": "Серебро",
+          "price_stars": 150
+        },
+        {
+          "tier": "TIER_3",
+          "name_en": "Gold",
+          "name_ru": "Золото",
+          "price_stars": 400
+        },
+        {
+          "tier": "TIER_4",
+          "name_en": "Platinum",
+          "name_ru": "Платина",
+          "price_stars": 1000
+        },
+        {
+          "tier": "TIER_5",
+          "name_en": "Diamond",
+          "name_ru": "Алмаз",
+          "price_stars": 2500
+        }
+      ]
+    },
+    "spin_odds": {
+      "title": "Spin odds (weights)",
+      "columns": {
+        "prize": "Prize",
+        "t1": "TIER_1 weight",
+        "t2": "TIER_2 weight",
+        "t3": "TIER_3 weight",
+        "t4": "TIER_4 weight",
+        "t5": "TIER_5 weight"
+      },
+      "rows": [
+        {
+          "prize": "stars:5",
+          "t1": 5610,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "stars:20",
+          "t1": 3101,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "stars:50",
+          "t1": 1203,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "gingercookie1",
+          "t1": 7,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "libertyfigure1",
+          "t1": 4,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "icecream1",
+          "t1": 20,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "lolpop1",
+          "t1": 14,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "freshsocks2",
+          "t1": 3,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "gingercookie2",
+          "t1": 3,
+          "t2": null,
+          "t3": null,
+          "t4": 9184,
+          "t5": null
+        },
+        {
+          "prize": "gingercookie3",
+          "t1": 2,
+          "t2": 200,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "icecream2",
+          "t1": 8,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "icecream3",
+          "t1": 4,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "lolpop2",
+          "t1": 8,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "lolpop3",
+          "t1": 3,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "freshsocks1",
+          "t1": 5,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "freshsocks3",
+          "t1": 2,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "libertyfigure2",
+          "t1": 2,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "libertyfigure3",
+          "t1": 1,
+          "t2": 160,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "inputkey",
+          "t1": null,
+          "t2": 180,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "witchhat",
+          "t1": null,
+          "t2": 80,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "evileye",
+          "t1": null,
+          "t2": 100,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "tophat",
+          "t1": null,
+          "t2": 50,
+          "t3": null,
+          "t4": null,
+          "t5": 3200
+        },
+        {
+          "prize": "stars:30",
+          "t1": null,
+          "t2": 7426,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "stars:100",
+          "t1": null,
+          "t2": 1804,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "stars:50",
+          "t1": null,
+          "t2": null,
+          "t3": 7014,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "chillflame",
+          "t1": null,
+          "t2": null,
+          "t3": 1000,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "eternalcandle",
+          "t1": null,
+          "t2": null,
+          "t3": 696,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "jinglebells",
+          "t1": null,
+          "t2": null,
+          "t3": 600,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "snowglobe",
+          "t1": null,
+          "t2": null,
+          "t3": 350,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "madpumpkin",
+          "t1": null,
+          "t2": null,
+          "t3": 180,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "luckylocket",
+          "t1": null,
+          "t2": null,
+          "t3": 120,
+          "t4": null,
+          "t5": 5950
+        },
+        {
+          "prize": "electricskull",
+          "t1": null,
+          "t2": null,
+          "t3": 40,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "finepen",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 336,
+          "t5": null
+        },
+        {
+          "prize": "sakuraflower",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 150,
+          "t5": null
+        },
+        {
+          "prize": "trappedheart",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 80,
+          "t5": null
+        },
+        {
+          "prize": "eternalrose",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 60,
+          "t5": 400
+        },
+        {
+          "prize": "coffin",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 40,
+          "t5": null
+        },
+        {
+          "prize": "bondedring",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 30,
+          "t5": 120
+        },
+        {
+          "prize": "recordplayer",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 120,
+          "t5": null
+        },
+        {
+          "prize": "kissedfrog",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": 90
+        },
+        {
+          "prize": "voodoodoll",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": 150
+        },
+        {
+          "prize": "astralshard",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": 30
+        },
+        {
+          "prize": "gemsignet",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": 60
+        }
+      ]
+    },
+    "chest_pool": {
+      "title": "Chest prize pool",
+      "columns": {
+        "type": "Type",
+        "amount": "Amount (coins or stars)",
+        "gift": "Gift key (gift only)",
+        "weight": "Weight"
+      },
+      "rows": [
+        {
+          "type": "coins",
+          "amount": 300,
+          "gift": null,
+          "weight": 5483
+        },
+        {
+          "type": "stars",
+          "amount": 1,
+          "gift": null,
+          "weight": 1999
+        },
+        {
+          "type": "stars",
+          "amount": 3,
+          "gift": null,
+          "weight": 1300
+        },
+        {
+          "type": "stars",
+          "amount": 5,
+          "gift": null,
+          "weight": 700
+        },
+        {
+          "type": "stars",
+          "amount": 20,
+          "gift": null,
+          "weight": 300
+        },
+        {
+          "type": "stars",
+          "amount": 50,
+          "gift": null,
+          "weight": 130
+        },
+        {
+          "type": "stars",
+          "amount": 100,
+          "gift": null,
+          "weight": 50
+        },
+        {
+          "type": "gift",
+          "amount": null,
+          "gift": "icecream1",
+          "weight": 22
+        },
+        {
+          "type": "gift",
+          "amount": null,
+          "gift": "lolpop1",
+          "weight": 16
+        }
+      ]
+    }
+  },
+  "calculator": {
+    "ton": "1.16",
+    "coin": "1",
+    "star": "0.0166"
+  },
+  "notes": null,
+  "undecided": [
+    "networks / tads TADS (no ads available at the moment) / priority",
+    "networks / monetag Monetag / priority"
+  ]
+}
