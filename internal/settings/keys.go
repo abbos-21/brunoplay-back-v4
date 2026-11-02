@@ -114,6 +114,14 @@ const (
 	KeySpinPublishOdds = "spin.publish_odds"
 	KeyGuardCoinValue  = "guard.coin_value_stars"
 
+	// smart prizes (spin and chest)
+	KeySmartEnabled      = "smart.enabled"
+	KeySmartWelcomeSpin  = "smart.welcome_plays_spin"
+	KeySmartWelcomeChest = "smart.welcome_plays_chest"
+	KeySmartWelcomePct   = "smart.welcome_payback_percent"
+	KeySmartTargetPct    = "smart.target_payback_percent"
+	KeySmartNeedsTopup   = "smart.welcome_needs_topup"
+
 	// friends and tasks
 	KeyRefLevelRewards = "referral.level_rewards"
 	KeyRefMiningPct    = "referral.mining_percent"
@@ -353,6 +361,12 @@ func Registry() []Def {
 		i(KeyGuardWindowH, "games", "Payout guard window (hours)", 24, 1, 720),
 		b(KeySpinPublishOdds, "games", "Show the relative odds of the gifts to players (false = every gift shown with equal weight)", false),
 		fl(KeyGuardCoinValue, "games", "Payout guard: how many stars one coin is worth when counting coin prizes (0 = coins are not counted)", 0, 0, 1000000),
+		b(KeySmartEnabled, "smart", "Smart prizes ON: the spin and chest choose each prize from the player's own history instead of the weights (the weights stop being used). OFF = the normal weighted draw", false),
+		i(KeySmartWelcomeSpin, "smart", "Smart prizes: how many of a player's first spins (one draw = one play) get the bigger welcome prizes", 5, 0, 1000),
+		i(KeySmartWelcomeChest, "smart", "Smart prizes: how many of a player's first chest rounds get the bigger welcome prizes", 5, 0, 1000),
+		fl(KeySmartWelcomePct, "smart", "Smart prizes: during the welcome plays the prizes pay back about this percent of what the player paid (150 = 1.5 times)", 150, 100, 1000),
+		fl(KeySmartTargetPct, "smart", "Smart prizes: after the welcome plays the engine steers each player's total winnings toward this percent of everything they spent (80 = you keep 20%)", 80, 0, 100),
+		b(KeySmartNeedsTopup, "smart", "Smart prizes: the welcome plays start only after the player's first real top-up (Stars or TON)", true),
 		i(KeyWinnersMin, "games", "Smallest prize worth, in stars, shown in the winners feed (0 = every prize)", 0, 0, big),
 
 		obj(KeyRefLevelRewards, "friends", "Coins the inviter gets when a friend reaches a level: {\"2\":200,...}", nil),

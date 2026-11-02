@@ -209,14 +209,34 @@ func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang appe
 			}
 		}
 		prizes := make([]Prize, 0, picks)
+		smart, err := s.smartBegin(ctx, tx, playerID, GameChest)
+		if err != nil {
+			return err
+		}
+		welcome := false
+		if smart != nil {
+			welcome = smart.startPlay() // one round is one play
+		}
+		pickPrice := float64(cost) / float64(picks)
 		for i := 0; i < picks; i++ {
-			drawn, err := pick(pool)
-			if err != nil {
-				return err
-			}
-			p, _, err := s.guard(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i)
-			if err != nil {
-				return err
+			var drawn, p Prize
+			if smart != nil {
+				// smart prizes: chosen from the player's history, the weights are not used; a welcome round skips the guard
+				drawn = smart.draw(pool, pickPrice, welcome)
+				p = drawn
+				if !welcome {
+					if p, _, err = s.guard(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i); err != nil {
+						return err
+					}
+				}
+				smart.settle(pickPrice, p)
+			} else {
+				if drawn, err = pick(pool); err != nil {
+					return err
+				}
+				if p, _, err = s.guard(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i); err != nil {
+					return err
+				}
 			}
 			if err := s.recordPaid(ctx, tx, GameChest, "round", s.starValue(p, s.coinStars(ctx))); err != nil {
 				return err
@@ -224,9 +244,12 @@ func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang appe
 			p.Weight = 0
 			prizes = append(prizes, p)
 		}
+		if err := s.smartSave(ctx, tx, smart); err != nil {
+			return err
+		}
 		b, _ := json.Marshal(prizes)
 		var roundID int64
-		err := tx.QueryRow(ctx, `INSERT INTO chest_rounds (player_id, status, cost, picks, prizes, created_at) VALUES ($1,'OPEN',$2,$3,$4,$5) RETURNING id`, playerID, cost, picks, b, s.now()).Scan(&roundID)
+		err = tx.QueryRow(ctx, `INSERT INTO chest_rounds (player_id, status, cost, picks, prizes, created_at) VALUES ($1,'OPEN',$2,$3,$4,$5) RETURNING id`, playerID, cost, picks, b, s.now()).Scan(&roundID)
 		if db.IsUnique(err, "chest_one_open") {
 			return apperr.ChestRoundOpen
 		}

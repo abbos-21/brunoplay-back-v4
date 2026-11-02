@@ -262,14 +262,30 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 			}
 		}
 		res = &SpinResult{Spent: total}
+		smart, err := s.smartBegin(ctx, tx, playerID, GameSpin)
+		if err != nil {
+			return err
+		}
 		for i := 0; i < count; i++ {
-			drawn, err := pick(pool)
-			if err != nil {
-				return err
-			}
-			prize, _, err := s.guard(ctx, tx, playerID, GameSpin, tier, drawn, guardPool, count-1-i)
-			if err != nil {
-				return err
+			var drawn, prize Prize
+			if smart != nil {
+				// smart prizes: chosen from the player's history, the weights are not used; welcome plays skip the guard
+				welcome := smart.startPlay()
+				drawn = smart.draw(pool, float64(cfg.Price), welcome)
+				prize = drawn
+				if !welcome {
+					if prize, _, err = s.guard(ctx, tx, playerID, GameSpin, tier, drawn, guardPool, count-1-i); err != nil {
+						return err
+					}
+				}
+				smart.settle(float64(cfg.Price), prize)
+			} else {
+				if drawn, err = pick(pool); err != nil {
+					return err
+				}
+				if prize, _, err = s.guard(ctx, tx, playerID, GameSpin, tier, drawn, guardPool, count-1-i); err != nil {
+					return err
+				}
 			}
 			worth := s.starValue(prize, coinStars)
 			if err := s.recordPaid(ctx, tx, GameSpin, tier, worth); err != nil {
@@ -293,6 +309,9 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 				res.TotalStarsWon += prize.Value
 			}
 			res.Results = append(res.Results, SpinPrize{Type: prize.Type, Value: prize.Value, Label: prizeLabel(prize, gifts, lang), Gift: prize.Gift, GiftID: gid, StarValue: worth})
+		}
+		if err := s.smartSave(ctx, tx, smart); err != nil {
+			return err
 		}
 		_, res.Stars, err = ledger.Balances(ctx, tx, playerID)
 		return err

@@ -122,6 +122,17 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `notifications.quiet_hours` | json | `map[from:-1 to:-1]` | Quiet hours in UTC {from,to} (null = none) |
 | `notifications.warn_hours` | json | `[6 1]` | Hours before the daily reset to warn |
 
+## smart
+
+| Key | Type | Default | What it is |
+|---|---|---|---|
+| `smart.enabled` | bool | `false` | Smart prizes ON: the spin and chest choose each prize from the player's own history instead of the weights (the weights stop being used). OFF = the normal weighted draw |
+| `smart.target_payback_percent` | float | `80` | Smart prizes: after the welcome plays the engine steers each player's total winnings toward this percent of everything they spent (80 = you keep 20%) |
+| `smart.welcome_needs_topup` | bool | `true` | Smart prizes: the welcome plays start only after the player's first real top-up (Stars or TON) |
+| `smart.welcome_payback_percent` | float | `150` | Smart prizes: during the welcome plays the prizes pay back about this percent of what the player paid (150 = 1.5 times) |
+| `smart.welcome_plays_chest` | int | `5` | Smart prizes: how many of a player's first chest rounds get the bigger welcome prizes |
+| `smart.welcome_plays_spin` | int | `5` | Smart prizes: how many of a player's first spins (one draw = one play) get the bigger welcome prizes |
+
 ## system
 
 | Key | Type | Default | What it is |
