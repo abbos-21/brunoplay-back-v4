@@ -296,7 +296,7 @@
       "key": "guard.max_payout_ratio",
       "label": "Maximum payout ratio",
       "unit": "ratio",
-      "value": 0.9
+      "value": 0.75
     },
     {
       "key": "guard.window_hours",
@@ -1284,64 +1284,16 @@
       },
       "rows": [
         {
-          "prize": "stars:3",
-          "t1": 2200,
+          "prize": "stars:5",
+          "t1": 5610,
           "t2": null,
           "t3": null,
           "t4": null,
           "t5": null
         },
         {
-          "prize": "stars:6",
-          "t1": 2200,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:10",
-          "t1": 1888,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:15",
-          "t1": 1223,
-          "t2": 2198,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:22",
-          "t1": 812,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:30",
-          "t1": 582,
-          "t2": 2200,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:40",
-          "t1": null,
-          "t2": null,
-          "t3": 2200,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:45",
-          "t1": 377,
+          "prize": "stars:20",
+          "t1": 3101,
           "t2": null,
           "t3": null,
           "t4": null,
@@ -1349,279 +1301,7 @@
         },
         {
           "prize": "stars:50",
-          "t1": null,
-          "t2": 1791,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:60",
-          "t1": 277,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:75",
-          "t1": null,
-          "t2": 1170,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:80",
-          "t1": null,
-          "t2": null,
-          "t3": 2200,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:90",
-          "t1": 180,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:100",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": 2200,
-          "t5": null
-        },
-        {
-          "prize": "stars:110",
-          "t1": null,
-          "t2": 782,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:140",
-          "t1": null,
-          "t2": null,
-          "t3": 1575,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:150",
-          "t1": 104,
-          "t2": 565,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:200",
-          "t1": null,
-          "t2": null,
-          "t3": 1146,
-          "t4": 2199,
-          "t5": null
-        },
-        {
-          "prize": "stars:225",
-          "t1": null,
-          "t2": 369,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:240",
-          "t1": 63,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:250",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 2197
-        },
-        {
-          "prize": "stars:300",
-          "t1": null,
-          "t2": 273,
-          "t3": 798,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:350",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": 1588,
-          "t5": null
-        },
-        {
-          "prize": "stars:400",
-          "t1": null,
-          "t2": null,
-          "t3": 617,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:450",
-          "t1": null,
-          "t2": 178,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:500",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": 1129,
-          "t5": 2157
-        },
-        {
-          "prize": "stars:600",
-          "t1": null,
-          "t2": null,
-          "t3": 430,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:750",
-          "t1": null,
-          "t2": 104,
-          "t3": null,
-          "t4": 766,
-          "t5": null
-        },
-        {
-          "prize": "stars:800",
-          "t1": null,
-          "t2": null,
-          "t3": 332,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:900",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 1356
-        },
-        {
-          "prize": "stars:1000",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": 581,
-          "t5": null
-        },
-        {
-          "prize": "stars:1200",
-          "t1": null,
-          "t2": null,
-          "t3": 232,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "stars:1250",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 1046
-        },
-        {
-          "prize": "stars:1500",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": 394,
-          "t5": null
-        },
-        {
-          "prize": "stars:1900",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 751
-        },
-        {
-          "prize": "stars:2000",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": 299,
-          "t5": null
-        },
-        {
-          "prize": "stars:2500",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 605
-        },
-        {
-          "prize": "stars:3000",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": 203,
-          "t5": null
-        },
-        {
-          "prize": "stars:3750",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 439
-        },
-        {
-          "prize": "stars:5000",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 350
-        },
-        {
-          "prize": "stars:7500",
-          "t1": null,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": 254
-        },
-        {
-          "prize": "icecream1",
-          "t1": 35,
-          "t2": null,
-          "t3": null,
-          "t4": null,
-          "t5": null
-        },
-        {
-          "prize": "lolpop1",
-          "t1": 32,
+          "t1": 1203,
           "t2": null,
           "t3": null,
           "t4": null,
@@ -1629,24 +1309,128 @@
         },
         {
           "prize": "gingercookie1",
-          "t1": 27,
+          "t1": 7,
           "t2": null,
           "t3": null,
           "t4": null,
           "t5": null
         },
         {
-          "prize": "gingercookie3",
-          "t1": null,
-          "t2": 124,
+          "prize": "libertyfigure1",
+          "t1": 4,
+          "t2": null,
           "t3": null,
           "t4": null,
           "t5": null
         },
         {
-          "prize": "evileye",
+          "prize": "icecream1",
+          "t1": 20,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "lolpop1",
+          "t1": 14,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "freshsocks2",
+          "t1": 3,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "gingercookie2",
+          "t1": 3,
+          "t2": null,
+          "t3": null,
+          "t4": 9184,
+          "t5": null
+        },
+        {
+          "prize": "gingercookie3",
+          "t1": 2,
+          "t2": 200,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "icecream2",
+          "t1": 8,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "icecream3",
+          "t1": 4,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "lolpop2",
+          "t1": 8,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "lolpop3",
+          "t1": 3,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "freshsocks1",
+          "t1": 5,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "freshsocks3",
+          "t1": 2,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "libertyfigure2",
+          "t1": 2,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "libertyfigure3",
+          "t1": 1,
+          "t2": 160,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "inputkey",
           "t1": null,
-          "t2": 90,
+          "t2": 180,
           "t3": null,
           "t4": null,
           "t5": null
@@ -1654,7 +1438,15 @@
         {
           "prize": "witchhat",
           "t1": null,
-          "t2": 82,
+          "t2": 80,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "evileye",
+          "t1": null,
+          "t2": 100,
           "t3": null,
           "t4": null,
           "t5": null
@@ -1662,8 +1454,64 @@
         {
           "prize": "tophat",
           "t1": null,
-          "t2": 74,
+          "t2": 50,
           "t3": null,
+          "t4": null,
+          "t5": 3200
+        },
+        {
+          "prize": "stars:30",
+          "t1": null,
+          "t2": 7426,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "stars:100",
+          "t1": null,
+          "t2": 1804,
+          "t3": null,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "stars:50",
+          "t1": null,
+          "t2": null,
+          "t3": 7014,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "chillflame",
+          "t1": null,
+          "t2": null,
+          "t3": 1000,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "eternalcandle",
+          "t1": null,
+          "t2": null,
+          "t3": 696,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "jinglebells",
+          "t1": null,
+          "t2": null,
+          "t3": 600,
+          "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "snowglobe",
+          "t1": null,
+          "t2": null,
+          "t3": 350,
           "t4": null,
           "t5": null
         },
@@ -1671,7 +1519,7 @@
           "prize": "madpumpkin",
           "t1": null,
           "t2": null,
-          "t3": 189,
+          "t3": 180,
           "t4": null,
           "t5": null
         },
@@ -1679,16 +1527,40 @@
           "prize": "luckylocket",
           "t1": null,
           "t2": null,
-          "t3": 179,
+          "t3": 120,
           "t4": null,
-          "t5": null
+          "t5": 5950
         },
         {
           "prize": "electricskull",
           "t1": null,
           "t2": null,
-          "t3": 102,
+          "t3": 40,
           "t4": null,
+          "t5": null
+        },
+        {
+          "prize": "finepen",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 336,
+          "t5": null
+        },
+        {
+          "prize": "sakuraflower",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 150,
+          "t5": null
+        },
+        {
+          "prize": "trappedheart",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 80,
           "t5": null
         },
         {
@@ -1696,15 +1568,15 @@
           "t1": null,
           "t2": null,
           "t3": null,
-          "t4": 213,
-          "t5": null
+          "t4": 60,
+          "t5": 400
         },
         {
           "prize": "coffin",
           "t1": null,
           "t2": null,
           "t3": null,
-          "t4": 168,
+          "t4": 40,
           "t5": null
         },
         {
@@ -1712,7 +1584,15 @@
           "t1": null,
           "t2": null,
           "t3": null,
-          "t4": 136,
+          "t4": 30,
+          "t5": 120
+        },
+        {
+          "prize": "recordplayer",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": 120,
           "t5": null
         },
         {
@@ -1720,16 +1600,16 @@
           "t1": null,
           "t2": null,
           "t3": null,
-          "t4": 124,
-          "t5": 349
+          "t4": null,
+          "t5": 90
         },
         {
-          "prize": "gemsignet",
+          "prize": "voodoodoll",
           "t1": null,
           "t2": null,
           "t3": null,
           "t4": null,
-          "t5": 302
+          "t5": 150
         },
         {
           "prize": "astralshard",
@@ -1737,7 +1617,15 @@
           "t2": null,
           "t3": null,
           "t4": null,
-          "t5": 194
+          "t5": 30
+        },
+        {
+          "prize": "gemsignet",
+          "t1": null,
+          "t2": null,
+          "t3": null,
+          "t4": null,
+          "t5": 60
         }
       ]
     },
