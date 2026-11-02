@@ -58,7 +58,7 @@ func TestSmartSessionSteersToTheTarget(t *testing.T) {
 		{Type: TypeStars, Value: 5}, {Type: TypeStars, Value: 20}, {Type: TypeStars, Value: 50},
 		{Type: TypeGift, Gift: "a", Value: 400}, {Type: TypeGift, Gift: "b", Value: 600},
 	}
-	ss := &smartSession{cfg: smartCfg{Enabled: true, WelcomePct: 150, TargetPct: 80}, eligible: true, welcomeN: 5}
+	ss := &smartSession{cfg: smartCfg{Enabled: true, WelcomePct: 150, TargetPct: 80}, eligible: true, gateOpen: true, welcomeN: 5}
 	const price = 30.0
 	var welcomePaid, welcomeSpent float64
 	for i := 0; i < 600; i++ {

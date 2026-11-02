@@ -262,7 +262,7 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 			}
 		}
 		res = &SpinResult{Spent: total}
-		smart, err := s.smartBegin(ctx, tx, playerID, GameSpin)
+		smart, err := s.smartBegin(ctx, tx, playerID, GameSpin, tier)
 		if err != nil {
 			return err
 		}
@@ -275,6 +275,11 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 				prize = drawn
 				if !welcome {
 					if prize, _, err = s.guard(ctx, tx, playerID, GameSpin, tier, drawn, guardPool, count-1-i); err != nil {
+						return err
+					}
+				} else if smart.cfg.GatePct > 0 {
+					// a welcome prize never pushes the game's payout above the overall limit
+					if prize, _, err = s.guardAt(ctx, tx, playerID, GameSpin, tier, drawn, guardPool, count-1-i, smart.cfg.GatePct/100); err != nil {
 						return err
 					}
 				}

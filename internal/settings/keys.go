@@ -121,6 +121,7 @@ const (
 	KeySmartWelcomePct   = "smart.welcome_payback_percent"
 	KeySmartTargetPct    = "smart.target_payback_percent"
 	KeySmartNeedsTopup   = "smart.welcome_needs_topup"
+	KeySmartGatePct      = "smart.welcome_gate_percent"
 
 	// friends and tasks
 	KeyRefLevelRewards = "referral.level_rewards"
@@ -366,6 +367,7 @@ func Registry() []Def {
 		i(KeySmartWelcomeChest, "smart", "Smart prizes: how many of a player's first chest rounds get the bigger welcome prizes", 5, 0, 1000),
 		fl(KeySmartWelcomePct, "smart", "Smart prizes: during the welcome plays the prizes pay back about this percent of what the player paid (150 = 1.5 times)", 150, 100, 1000),
 		fl(KeySmartTargetPct, "smart", "Smart prizes: after the welcome plays the engine steers each player's total winnings toward this percent of everything they spent (80 = you keep 20%)", 80, 0, 100),
+		fl(KeySmartGatePct, "smart", "Smart prizes: welcome plays are given only while all players together were paid less than this percent of what they spent in the payout-guard window (checked per game tier; 90 = you keep at least about 10%, 100 = break-even, 0 = no limit). This is what keeps the project in profit when many new players arrive", 90, 0, 1000),
 		b(KeySmartNeedsTopup, "smart", "Smart prizes: the welcome plays start only after the player's first real top-up (Stars or TON)", true),
 		i(KeyWinnersMin, "games", "Smallest prize worth, in stars, shown in the winners feed (0 = every prize)", 0, 0, big),
 

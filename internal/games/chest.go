@@ -209,7 +209,7 @@ func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang appe
 			}
 		}
 		prizes := make([]Prize, 0, picks)
-		smart, err := s.smartBegin(ctx, tx, playerID, GameChest)
+		smart, err := s.smartBegin(ctx, tx, playerID, GameChest, "round")
 		if err != nil {
 			return err
 		}
@@ -226,6 +226,11 @@ func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang appe
 				p = drawn
 				if !welcome {
 					if p, _, err = s.guard(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i); err != nil {
+						return err
+					}
+				} else if smart.cfg.GatePct > 0 {
+					// a welcome prize never pushes the game's payout above the overall limit
+					if p, _, err = s.guardAt(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i, smart.cfg.GatePct/100); err != nil {
 						return err
 					}
 				}

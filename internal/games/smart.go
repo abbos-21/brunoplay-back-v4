@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -32,6 +33,7 @@ type smartCfg struct {
 	WelcomePct   float64
 	TargetPct    float64
 	NeedsTopup   bool
+	GatePct      float64
 }
 
 func (s *Service) smartConfig(ctx context.Context) (smartCfg, error) {
@@ -54,6 +56,9 @@ func (s *Service) smartConfig(ctx context.Context) (smartCfg, error) {
 		return c, err
 	}
 	c.NeedsTopup = s.settings.BoolOr(ctx, settings.KeySmartNeedsTopup, true)
+	if c.GatePct, err = s.settings.Float(ctx, settings.KeySmartGatePct); err != nil {
+		return c, err
+	}
 	return c, nil
 }
 
@@ -73,17 +78,18 @@ type smartSession struct {
 	cfg       smartCfg
 	coinStars float64
 	eligible  bool // the welcome plays may start (the first top-up is done, or none is needed)
+	gateOpen  bool // the game as a whole is in enough profit to give welcome plays right now
 	welcomeN  int64
 	st        smartState
 }
 
 // smartBegin loads the state of a player in a game. The caller holds the player's lock.
-func (s *Service) smartBegin(ctx context.Context, tx db.Querier, playerID int64, game string) (*smartSession, error) {
+func (s *Service) smartBegin(ctx context.Context, tx db.Querier, playerID int64, game, tier string) (*smartSession, error) {
 	cfg, err := s.smartConfig(ctx)
 	if err != nil || !cfg.Enabled {
 		return nil, err
 	}
-	ss := &smartSession{game: game, playerID: playerID, cfg: cfg, coinStars: s.coinStars(ctx)}
+	ss := &smartSession{game: game, playerID: playerID, cfg: cfg, coinStars: s.coinStars(ctx), gateOpen: true}
 	ss.welcomeN = cfg.WelcomeSpin
 	if game == GameChest {
 		ss.welcomeN = cfg.WelcomeChest
@@ -110,13 +116,26 @@ func (s *Service) smartBegin(ctx context.Context, tx db.Querier, playerID int64,
 			return nil, err
 		}
 	}
+	// the overall guard on the welcome: while the players of this game tier together were paid too much of what they spent, no new welcome
+	if cfg.GatePct > 0 && ss.eligible && !ss.st.WelcomeDone && ss.st.WelcomeUsed < ss.welcomeN {
+		hours, err := s.settings.Int(ctx, settings.KeyGuardWindowH)
+		if err != nil {
+			return nil, err
+		}
+		var spent, paid int64
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(sum(spent),0), COALESCE(sum(paid),0) FROM payout_stats WHERE game=$1 AND tier=$2 AND hour >= $3`,
+			game, tier, hourOf(s.now()).Add(-time.Duration(hours)*time.Hour)).Scan(&spent, &paid); err != nil {
+			return nil, err
+		}
+		ss.gateOpen = spent <= 0 || float64(paid)/float64(spent)*100 < cfg.GatePct
+	}
 	return ss, nil
 }
 
 // startPlay counts one play and says whether it is a welcome play.
 func (ss *smartSession) startPlay() bool {
 	ss.st.Plays++
-	if ss.eligible && !ss.st.WelcomeDone && ss.st.WelcomeUsed < ss.welcomeN {
+	if ss.eligible && ss.gateOpen && !ss.st.WelcomeDone && ss.st.WelcomeUsed < ss.welcomeN {
 		ss.st.WelcomeUsed++
 		return true
 	}
@@ -229,7 +248,7 @@ func smartProbs(vals []float64, m float64) []float64 {
 		return w, mean
 	}
 	a, b := -8.0, 8.0
-	for i := 0; i < 80; i++ {
+	for i := 0; i < 45; i++ {
 		mid := (a + b) / 2
 		if _, mean := at(mid); mean < m {
 			a = mid

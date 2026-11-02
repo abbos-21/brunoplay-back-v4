@@ -190,6 +190,14 @@ func (s *Service) guard(ctx context.Context, tx db.Querier, playerID int64, game
 	if err != nil || max <= 0 {
 		return drawn, false, nil
 	}
+	return s.guardAt(ctx, tx, playerID, game, tier, drawn, pool, remaining, max)
+}
+
+// guardAt is the guard with a given limit (the smart welcome plays use their own, higher one).
+func (s *Service) guardAt(ctx context.Context, tx db.Querier, playerID int64, game, tier string, drawn Prize, pool []Prize, remaining int, max float64) (Prize, bool, error) {
+	if max <= 0 {
+		return drawn, false, nil
+	}
 	hours, err := s.settings.Int(ctx, settings.KeyGuardWindowH)
 	if err != nil {
 		return drawn, false, nil

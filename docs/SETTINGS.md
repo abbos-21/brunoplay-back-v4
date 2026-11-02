@@ -128,6 +128,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 |---|---|---|---|
 | `smart.enabled` | bool | `false` | Smart prizes ON: the spin and chest choose each prize from the player's own history instead of the weights (the weights stop being used). OFF = the normal weighted draw |
 | `smart.target_payback_percent` | float | `80` | Smart prizes: after the welcome plays the engine steers each player's total winnings toward this percent of everything they spent (80 = you keep 20%) |
+| `smart.welcome_gate_percent` | float | `90` | Smart prizes: welcome plays are given only while all players together were paid less than this percent of what they spent in the payout-guard window (checked per game tier; 90 = you keep at least about 10%, 100 = break-even, 0 = no limit). This is what keeps the project in profit when many new players arrive |
 | `smart.welcome_needs_topup` | bool | `true` | Smart prizes: the welcome plays start only after the player's first real top-up (Stars or TON) |
 | `smart.welcome_payback_percent` | float | `150` | Smart prizes: during the welcome plays the prizes pay back about this percent of what the player paid (150 = 1.5 times) |
 | `smart.welcome_plays_chest` | int | `5` | Smart prizes: how many of a player's first chest rounds get the bigger welcome prizes |
