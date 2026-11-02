@@ -94,25 +94,27 @@ const (
 	KeyWdNoticeRU      = "withdrawal.notice_ru"
 
 	// games
-	KeySpinTiers       = "spin.tiers"
-	KeySpinOdds        = "spin.odds"
-	KeyGifts           = "gifts"
-	KeyChestCost       = "chest.round_cost_stars"
-	KeyChestPicks      = "chest.picks_per_round"
-	KeyChestPool       = "chest.pool"
-	KeyChestExpiryH    = "chest.round_expiry_hours"
-	KeyRideCost        = "ride.run_cost_stars"
-	KeyRideMinSeconds  = "ride.min_duration_seconds"
-	KeyRideMaxSeconds  = "ride.max_duration_seconds"
-	KeyRideSpawnDelay  = "ride.spawn_delay_seconds"
-	KeyRideMaxCoinsSec = "ride.max_coins_per_second"
-	KeyRideMaxPtsSec   = "ride.max_points_per_second"
-	KeyRideDailyCoins  = "ride.max_coins_per_day"
-	KeyGuardRatio      = "guard.max_payout_ratio"
-	KeyGuardWindowH    = "guard.window_hours"
-	KeyWinnersMin      = "spin.winners_min_value"
-	KeySpinPublishOdds = "spin.publish_odds"
-	KeyGuardCoinValue  = "guard.coin_value_stars"
+	KeySpinTiers        = "spin.tiers"
+	KeySpinOdds         = "spin.odds"
+	KeyGifts            = "gifts"
+	KeyChestCost        = "chest.round_cost_stars"
+	KeyChestPicks       = "chest.picks_per_round"
+	KeyChestPool        = "chest.pool"
+	KeyChestExpiryH     = "chest.round_expiry_hours"
+	KeySpinEmptyWeight  = "spin.empty_weight"
+	KeyChestEmptyWeight = "chest.empty_weight"
+	KeyRideCost         = "ride.run_cost_stars"
+	KeyRideMinSeconds   = "ride.min_duration_seconds"
+	KeyRideMaxSeconds   = "ride.max_duration_seconds"
+	KeyRideSpawnDelay   = "ride.spawn_delay_seconds"
+	KeyRideMaxCoinsSec  = "ride.max_coins_per_second"
+	KeyRideMaxPtsSec    = "ride.max_points_per_second"
+	KeyRideDailyCoins   = "ride.max_coins_per_day"
+	KeyGuardRatio       = "guard.max_payout_ratio"
+	KeyGuardWindowH     = "guard.window_hours"
+	KeyWinnersMin       = "spin.winners_min_value"
+	KeySpinPublishOdds  = "spin.publish_odds"
+	KeyGuardCoinValue   = "guard.coin_value_stars"
 
 	// smart prizes (spin and chest)
 	KeySmartEnabled      = "smart.enabled"
@@ -351,6 +353,8 @@ func Registry() []Def {
 		i(KeyChestPicks, "games", "Chests per round", 3, 1, 12),
 		arr(KeyChestPool, "games", "Chest prize pool [{type:coins|stars|gift,value,weight,gift}]", nil),
 		i(KeyChestExpiryH, "games", "Hours an unfinished chest round stays open (0 = forever)", 0, 0, 100000),
+		fl(KeySpinEmptyWeight, "games", "Spin: weight of the EMPTY slot (a draw that wins nothing), relative to the weights in spin.odds; 0 = no empty slot. A tier can have its own: add \"empty\": weight to that tier in spin.odds", 0, 0, 1000000000),
+		fl(KeyChestEmptyWeight, "games", "Chest: weight of the EMPTY chest (opens with nothing), relative to the weights in chest.pool; 0 = no empty chests. The pool can have its own: add {\"type\":\"empty\",\"weight\":N}", 0, 0, 1000000000),
 		i(KeyRideCost, "games", "Ride run price (stars)", nil, 0, big),
 		i(KeyRideMinSeconds, "games", "Shortest believable Ride run (seconds); the game itself cannot end a run before about 4.5 s, so keep this below that", 3, 0, 3600),
 		i(KeyRideMaxSeconds, "games", "A run can be saved for this long after it starts (seconds)", 900, 30, 7200),

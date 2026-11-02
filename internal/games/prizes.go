@@ -28,6 +28,8 @@ const (
 	TypeCoins = "coins"
 	TypeStars = "stars"
 	TypeGift  = "gift"
+	// TypeEmpty is a draw that wins nothing: an empty slot of the wheel, an empty chest
+	TypeEmpty = "empty"
 )
 
 // Prize is one possible (or drawn) prize. For gifts Value is the gift's star value.
@@ -211,7 +213,13 @@ func (s *Service) guardAt(ctx context.Context, tx db.Querier, playerID int64, ga
 		return drawn, false, nil
 	}
 	cs := s.coinStars(ctx)
-	cands := append([]Prize(nil), pool...)
+	// an empty result is never a step-down: the guard turns a big prize into a smaller one, not into nothing
+	cands := make([]Prize, 0, len(pool))
+	for _, c := range pool {
+		if c.Type != TypeEmpty {
+			cands = append(cands, c)
+		}
+	}
 	sort.SliceStable(cands, func(i, j int) bool { return s.starValue(cands[i], cs) > s.starValue(cands[j], cs) })
 	// the draws still to come in this purchase pay at least the smallest prize: keep room for them
 	var reserve int64
@@ -310,6 +318,9 @@ func (s *Service) GuardEvents(ctx context.Context, beforeID int64, limit int) ([
 
 // feed adds a win to the public winners list.
 func (s *Service) feed(ctx context.Context, tx db.Querier, playerID int64, game string, p Prize, spent int64) error {
+	if p.Type == TypeEmpty {
+		return nil
+	}
 	var username string
 	if err := tx.QueryRow(ctx, `SELECT username FROM players WHERE id=$1`, playerID).Scan(&username); err != nil {
 		return err

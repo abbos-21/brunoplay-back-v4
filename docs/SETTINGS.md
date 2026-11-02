@@ -74,6 +74,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 
 | Key | Type | Default | What it is |
 |---|---|---|---|
+| `chest.empty_weight` | float | `0` | Chest: weight of the EMPTY chest (opens with nothing), relative to the weights in chest.pool; 0 = no empty chests. The pool can have its own: add {"type":"empty","weight":N} |
 | `chest.picks_per_round` | int | `3` | Chests per round |
 | `chest.pool` | json | **required** | Chest prize pool [{type:coins/stars/gift,value,weight,gift}] |
 | `chest.round_cost_stars` | int | **required** | Chest round price (stars) |
@@ -89,6 +90,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ride.min_duration_seconds` | int | `3` | Shortest believable Ride run (seconds); the game itself cannot end a run before about 4.5 s, so keep this below that |
 | `ride.run_cost_stars` | int | **required** | Ride run price (stars) |
 | `ride.spawn_delay_seconds` | int | `3` | Seconds before obstacles and coins appear |
+| `spin.empty_weight` | float | `0` | Spin: weight of the EMPTY slot (a draw that wins nothing), relative to the weights in spin.odds; 0 = no empty slot. A tier can have its own: add "empty": weight to that tier in spin.odds |
 | `spin.odds` | json | **required** | Wheel odds {tier:{prize:weight}}. A prize is a gift key (heart), or coins:500, or stars:25. Weights are relative. |
 | `spin.publish_odds` | bool | `false` | Show the relative odds of the gifts to players (false = every gift shown with equal weight) |
 | `spin.tiers` | json | **required** | Spin tiers [{tier,price_stars}] |

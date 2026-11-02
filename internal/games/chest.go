@@ -45,10 +45,22 @@ func (s *Service) chestPool(ctx context.Context) ([]Prize, error) {
 			if e.Value <= 0 {
 				continue
 			}
+		case TypeEmpty:
+			p.Value, p.Gift = 0, ""
 		default:
 			continue
 		}
 		out = append(out, p)
+	}
+	// the empty chest: an "empty" entry of the pool, or else the weight in chest.empty_weight (0 = no empty chests)
+	hasEmpty := false
+	for _, e := range list {
+		hasEmpty = hasEmpty || e.Type == TypeEmpty
+	}
+	if !hasEmpty {
+		if w, werr := s.settings.Float(ctx, settings.KeyChestEmptyWeight); werr == nil && w > 0 {
+			out = append(out, Prize{Type: TypeEmpty, Weight: w})
+		}
 	}
 	if len(out) == 0 {
 		return nil, apperr.ConfigMissing.With("key", settings.KeyChestPool)
@@ -122,6 +134,11 @@ func (s *Service) loadRound(ctx context.Context, q db.Querier, playerID int64, f
 func (s *Service) chestPrize(p Prize, lang apperr.Lang, names map[string]Gift, giftID int64) ChestPrize {
 	cp := ChestPrize{Type: p.Type, Value: p.Value, Gift: p.Gift, GiftID: giftID}
 	switch p.Type {
+	case TypeEmpty:
+		cp.Label = "Empty"
+		if lang == apperr.RU {
+			cp.Label = "Пусто"
+		}
 	case TypeGift:
 		cp.Label = names[p.Gift].Name(lang)
 	case TypeCoins:

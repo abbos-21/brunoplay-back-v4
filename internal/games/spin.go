@@ -40,6 +40,9 @@ func (s *Service) tiers(ctx context.Context) ([]tierCfg, error) {
 
 // prizeFromKey reads one entry of the odds table: a gift key ("heart"), or an amount of coins ("coins:500") or stars ("stars:25").
 func prizeFromKey(key string, gifts map[string]Gift) (Prize, bool) {
+	if key == TypeEmpty { // "empty": a slot that wins nothing
+		return Prize{Type: TypeEmpty}, true
+	}
 	if kind, amount, ok := strings.Cut(key, ":"); ok {
 		n, err := strconv.ParseInt(amount, 10, 64)
 		if err != nil || n <= 0 {
@@ -65,12 +68,20 @@ func prizeSlug(p Prize) string {
 	if p.Type == TypeGift {
 		return p.Gift
 	}
+	if p.Type == TypeEmpty {
+		return TypeEmpty
+	}
 	return fmt.Sprintf("%s:%d", p.Type, p.Value)
 }
 
 // prizeLabel is the text shown for a prize in the player's language.
 func prizeLabel(p Prize, gifts map[string]Gift, lang apperr.Lang) string {
 	switch p.Type {
+	case TypeEmpty:
+		if lang == apperr.RU {
+			return "Пусто"
+		}
+		return "Empty"
 	case TypeCoins:
 		if lang == apperr.RU {
 			return "Монеты"
@@ -112,6 +123,12 @@ func (s *Service) tierPool(ctx context.Context, tier string) ([]Prize, error) {
 		}
 		p.Weight = row[k]
 		out = append(out, p)
+	}
+	// the empty slot: an "empty" entry of the tier's own odds, or else the weight in spin.empty_weight (0 = no empty slot)
+	if _, own := row[TypeEmpty]; !own {
+		if w, err := s.settings.Float(ctx, settings.KeySpinEmptyWeight); err == nil && w > 0 {
+			out = append(out, Prize{Type: TypeEmpty, Weight: w})
+		}
 	}
 	if len(out) == 0 {
 		return nil, apperr.ConfigMissing.With("key", settings.KeySpinOdds)
@@ -237,7 +254,7 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 	}
 	// the coin and star prizes of this tier are valid step-down choices too
 	for _, p := range pool {
-		if p.Type != TypeGift {
+		if p.Type != TypeGift && p.Type != TypeEmpty {
 			guardPool = append(guardPool, Prize{Type: p.Type, Value: p.Value})
 		}
 	}
@@ -329,6 +346,8 @@ func (s *Service) Spin(ctx context.Context, playerID int64, tier string, count i
 func (s *Service) payPrize(ctx context.Context, tx pgx.Tx, playerID int64, p Prize, batch string, idx int) (int64, error) {
 	key := fmt.Sprintf("spin:%s:%d", batch, idx)
 	switch p.Type {
+	case TypeEmpty:
+		return 0, nil // nothing to pay
 	case TypeCoins:
 		_, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: playerID, Currency: ledger.Coin, Amount: p.Value, Reason: ledger.ReasonSpinPrize,
 			RefType: "spin", RefID: batch, IdemKey: key, Earned: true})
