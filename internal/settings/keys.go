@@ -114,6 +114,16 @@ const (
 	KeyExchangeRate     = "exchange.coins_per_star"
 	KeyExchangeMinStars = "exchange.min_stars"
 
+	// star withdrawals (manual: an admin sends the Telegram Stars)
+	KeyStarWdEnabled    = "starwd.enabled"
+	KeyStarWdMin        = "starwd.min_stars"
+	KeyStarWdMinLevel   = "starwd.min_level"
+	KeyStarWdMinAgeDays = "starwd.min_account_age_days"
+	KeyStarWdDaily      = "starwd.daily_limit_stars"
+	KeyStarWdTotal      = "starwd.total_limit_stars"
+	KeyStarWdNoticeEN   = "starwd.notice_en"
+	KeyStarWdNoticeRU   = "starwd.notice_ru"
+
 
 	// friends and tasks
 	KeyRefLevelRewards = "referral.level_rewards"
@@ -324,6 +334,14 @@ func Registry() []Def {
 		fl(KeyGuardCoinValue, "games", "Payout guard: how many stars one coin is worth when counting coin prizes (0 = coins are not counted)", 0, 0, 1000000),
 		fl(KeyExchangeRate, "games", "Coins to stars: how many coins one star costs (0 = the exchange is switched off). Keep it well above the coin value of a withdrawal (1 TON = withdrawal.coins_per_ton coins), or players gain by exchanging", 20000, 0, 1000000000),
 		i(KeyExchangeMinStars, "games", "Coins to stars: the smallest number of stars a player can buy in one exchange", 1, 1, 1000000),
+		b(KeyStarWdEnabled, "withdrawal", "Star withdrawals: players can ask to take game stars out as real Telegram Stars (an admin sends them by hand); false = switched off", true),
+		i(KeyStarWdMin, "withdrawal", "Star withdrawals: the smallest request (stars)", 100, 1, 1000000000),
+		i(KeyStarWdMinLevel, "withdrawal", "Star withdrawals: minimum player level", 3, 1, 10),
+		i(KeyStarWdMinAgeDays, "withdrawal", "Star withdrawals: minimum account age in days", 3, 0, 100000),
+		i(KeyStarWdDaily, "withdrawal", "Star withdrawals: stars one player may ask for per day", 2000, 1, 1000000000),
+		i(KeyStarWdTotal, "withdrawal", "Star withdrawals: stars one player may ask for in total", 20000, 1, 1000000000),
+		s(KeyStarWdNoticeEN, "withdrawal", "Star withdrawals: notice on the screen (English)", "Requests are checked within 24 hours."),
+		s(KeyStarWdNoticeRU, "withdrawal", "Star withdrawals: notice on the screen (Russian)", "Заявки проверяются в течение 24 часов."),
 		i(KeyWinnersMin, "games", "Smallest prize worth, in stars, shown in the winners feed (0 = every prize)", 0, 0, big),
 
 		obj(KeyRefLevelRewards, "friends", "Coins the inviter gets when a friend reaches a level: {\"2\":200,...}", nil),

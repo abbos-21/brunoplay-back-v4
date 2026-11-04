@@ -89,6 +89,8 @@ func init() {
 	def(Type{"withdrawal_completed", CatPayments, 0, "/withdraw/history", "✅ Your withdrawal of {ton} TON was sent. Transaction: {tx}", "✅ Вывод {ton} TON отправлен. Транзакция: {tx}", "History", "История"})
 	def(Type{"withdrawal_failed", CatPayments, 0, "/withdraw/history", "❌ Your withdrawal could not be completed. {coins} coins were returned to your balance.", "❌ Вывод не удалось выполнить. {coins} монет возвращены на баланс.", "History", "История"})
 	def(Type{"withdrawal_cancelled", CatPayments, 0, "/withdraw/history", "↩️ Withdrawal cancelled, {coins} coins were returned.", "↩️ Вывод отменён, {coins} монет возвращены.", "History", "История"})
+	def(Type{"star_withdrawal_delivered", CatPayments, 0, "/withdraw/stars", "✅ Your withdrawal of {stars} stars was delivered to your Telegram account!", "✅ Вывод {stars} звёзд отправлен на ваш аккаунт Telegram!", "History", "История"})
+	def(Type{"star_withdrawal_cancelled", CatPayments, 0, "/withdraw/stars", "↩️ Your star withdrawal was cancelled: {reason}. {stars} stars were returned to your balance.", "↩️ Вывод звёзд отменён: {reason}. {stars} звёзд возвращены на баланс.", "History", "История"})
 	def(Type{"topup_paid", CatPayments, 0, "/", "⭐ {stars} stars were added to your balance.", "⭐ {stars} звёзд зачислены на ваш баланс.", "Open game", "Открыть игру"})
 	def(Type{"topup_refunded", CatPayments, 0, "/", "↩️ Your payment was refunded, {stars} stars were taken back.", "↩️ Платёж возвращён, {stars} звёзд списаны.", "Open game", "Открыть игру"})
 	def(Type{"account_blocked", CatPayments, 0, "/", "🚫 Your account was blocked. Please contact support.", "🚫 Ваш аккаунт заблокирован. Обратитесь в поддержку.", "Open game", "Открыть игру"})

@@ -177,6 +177,7 @@ type Live struct {
 	PendingTopups          int64 `json:"pendingTopups"`
 	QueuedMessages         int64 `json:"queuedMessages"`
 	OpenGiftClaims         int64 `json:"openGiftClaims"`
+	OpenStarWithdrawals    int64 `json:"openStarWithdrawals"`
 	FlaggedPlayers         int64 `json:"flaggedPlayers"`
 }
 
@@ -189,7 +190,8 @@ func (s *Service) Live(ctx context.Context) (*Live, error) {
 		(SELECT count(*) FROM topup_orders WHERE status='PENDING' AND expires_at > $1),
 		(SELECT count(*) FROM notifications WHERE status='PENDING'),
 		(SELECT count(*) FROM player_gifts WHERE status='CLAIM_REQUESTED'),
+		(SELECT count(*) FROM star_withdrawals WHERE status='PENDING'),
 		(SELECT count(*) FROM players WHERE hold_withdrawals OR hold_rewards)`, s.now()).
-		Scan(&l.PendingWithdrawals, &l.PendingWithdrawalCoins, &l.NeedsReview, &l.PendingTopups, &l.QueuedMessages, &l.OpenGiftClaims, &l.FlaggedPlayers)
+		Scan(&l.PendingWithdrawals, &l.PendingWithdrawalCoins, &l.NeedsReview, &l.PendingTopups, &l.QueuedMessages, &l.OpenGiftClaims, &l.OpenStarWithdrawals, &l.FlaggedPlayers)
 	return &l, err
 }

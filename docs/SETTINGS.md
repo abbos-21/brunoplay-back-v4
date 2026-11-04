@@ -161,6 +161,14 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 
 | Key | Type | Default | What it is |
 |---|---|---|---|
+| `starwd.daily_limit_stars` | int | `2000` | Star withdrawals: stars one player may ask for per day |
+| `starwd.enabled` | bool | `true` | Star withdrawals: players can ask to take game stars out as real Telegram Stars (an admin sends them by hand); false = switched off |
+| `starwd.min_account_age_days` | int | `3` | Star withdrawals: minimum account age in days |
+| `starwd.min_level` | int | `3` | Star withdrawals: minimum player level |
+| `starwd.min_stars` | int | `100` | Star withdrawals: the smallest request (stars) |
+| `starwd.notice_en` | string | `Requests are checked within 24 hours.` | Star withdrawals: notice on the screen (English) |
+| `starwd.notice_ru` | string | `Заявки проверяются в течение 24 часов.` | Star withdrawals: notice on the screen (Russian) |
+| `starwd.total_limit_stars` | int | `20000` | Star withdrawals: stars one player may ask for in total |
 | `withdrawal.auto_payout_daily_cap_ton` | float | `0` | Daily cap of automatic payouts in TON |
 | `withdrawal.auto_payout_max_ton` | float | `0` | Requests up to this TON amount are paid automatically (0 = all manual) |
 | `withdrawal.coins_per_ton` | float | **required** | Coins per 1 TON |

@@ -50,6 +50,8 @@ const (
 	ReasonGiftSell          = "gift_sell"
 	ReasonExchangeStars     = "exchange_stars"
 	ReasonExchangeCoins     = "exchange_coins"
+	ReasonStarWithdrawal       = "star_withdrawal"
+	ReasonStarWithdrawalRefund = "star_withdrawal_refund"
 	ReasonTournamentFee     = "tournament_fee"
 	ReasonTournamentPrize   = "tournament_prize"
 	ReasonTournamentRefund  = "tournament_refund"

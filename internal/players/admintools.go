@@ -86,14 +86,15 @@ func (s *Store) Reset(ctx context.Context, playerID, adminID int64, reason strin
 		if blocked {
 			return refused("The player is blocked: unblock first (a reset must not lift a block)")
 		}
-		var wd, gifts int
+		var wd, gifts, starWd int
 		if err := tx.QueryRow(ctx, `SELECT
 			(SELECT count(*) FROM withdrawals WHERE player_id=$1 AND status IN ('PENDING','PROCESSING')),
-			(SELECT count(*) FROM player_gifts WHERE player_id=$1 AND status='CLAIM_REQUESTED')`, playerID).Scan(&wd, &gifts); err != nil {
+			(SELECT count(*) FROM player_gifts WHERE player_id=$1 AND status='CLAIM_REQUESTED'),
+			(SELECT count(*) FROM star_withdrawals WHERE player_id=$1 AND status='PENDING')`, playerID).Scan(&wd, &gifts, &starWd); err != nil {
 			return err
 		}
-		if wd > 0 || gifts > 0 {
-			return refused("The player has a withdrawal in progress (%d) or a gift waiting for delivery (%d): finish or reject it first (Withdrawals / Gift claims)", wd, gifts)
+		if wd > 0 || gifts > 0 || starWd > 0 {
+			return refused("The player has a withdrawal in progress (%d) or a gift waiting for delivery (%d) or a star withdrawal in progress (%d): finish or reject it first (Withdrawals / Gift claims / Star withdrawals)", wd, gifts, starWd)
 		}
 		// invoices the player opened but did not pay move no money; they are closed so nothing can be credited to the archived record later
 		if _, err := tx.Exec(ctx, `UPDATE topup_orders SET status='FAILED', note='closed by an admin reset' WHERE player_id=$1 AND status='PENDING'`, playerID); err != nil {

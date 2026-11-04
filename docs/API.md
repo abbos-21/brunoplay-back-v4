@@ -56,6 +56,9 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/spin` | player |
 | GET | `/api/spin/tiers` | player |
 | GET | `/api/spin/winners` | player |
+| GET | `/api/star-withdrawals` | player |
+| POST | `/api/star-withdrawals` | player |
+| GET | `/api/star-withdrawals/info` | player |
 | GET | `/api/tasks` | player |
 | POST | `/api/tasks/seen` | player |
 | POST | `/api/tasks/{id}/ad-progress` | player |
@@ -141,6 +144,9 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/admin/settings/history` | admin |
 | GET | `/api/admin/settings/missing` | admin |
 | PUT | `/api/admin/settings/{key}` | admin |
+| GET | `/api/admin/star-withdrawals` | admin |
+| POST | `/api/admin/star-withdrawals/{id}/cancel` | admin |
+| POST | `/api/admin/star-withdrawals/{id}/deliver` | admin |
 | GET | `/api/admin/tasks` | admin |
 | POST | `/api/admin/tasks` | admin |
 | DELETE | `/api/admin/tasks/{id}` | admin |

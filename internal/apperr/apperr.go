@@ -172,6 +172,7 @@ var (
 	WdCooldown     = def("WITHDRAWAL_COOLDOWN", http.StatusConflict, "Please wait before the next withdrawal", "Подождите перед следующим выводом")
 	WdMin          = def("WITHDRAWAL_BELOW_MIN", http.StatusUnprocessableEntity, "Minimum withdrawal is {min} coins", "Минимальный вывод — {min} монет")
 	WdMax          = def("WITHDRAWAL_ABOVE_MAX", http.StatusUnprocessableEntity, "Maximum withdrawal is {max} coins", "Максимальный вывод — {max} монет")
+	StarWdMin      = def("STAR_WITHDRAWAL_BELOW_MIN", http.StatusUnprocessableEntity, "Minimum star withdrawal is {min} stars", "Минимальный вывод звёзд — {min}")
 	WdLimit        = def("WITHDRAWAL_LIMIT", http.StatusConflict, "Withdrawal limit reached", "Достигнут лимит вывода")
 	WdLevel        = def("WITHDRAWAL_LEVEL_TOO_LOW", http.StatusConflict, "Reach level {level} to withdraw", "Достигните уровня {level}, чтобы вывести")
 	WdAccountAge   = def("WITHDRAWAL_ACCOUNT_TOO_NEW", http.StatusConflict, "Your account is too new to withdraw", "Аккаунт слишком новый для вывода")

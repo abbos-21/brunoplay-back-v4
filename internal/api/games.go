@@ -20,6 +20,8 @@ func (d *Deps) gameRoutes(r chi.Router) {
 		r.Get("/gifts", httpx.Wrap(d.giftList))
 		r.Get("/gifts/art", httpx.Wrap(d.giftArtList))
 		r.Get("/exchange", httpx.Wrap(d.exchangeInfo))
+		r.Get("/star-withdrawals/info", httpx.Wrap(d.starWdInfo))
+		r.Get("/star-withdrawals", httpx.Wrap(d.starWdList))
 
 		r.Group(func(r chi.Router) {
 			r.Use(d.MW.Limit(d.MoneyLimit, "money"), d.MW.Idempotency)
@@ -29,6 +31,7 @@ func (d *Deps) gameRoutes(r chi.Router) {
 			r.Post("/ride/start", httpx.Wrap(d.rideStart))
 			r.Post("/ride/finish", httpx.Wrap(d.rideFinish))
 			r.Post("/exchange", httpx.Wrap(d.exchangeBuyStars))
+			r.Post("/star-withdrawals", httpx.Wrap(d.starWdCreate))
 			r.Post("/gifts/{id}/sell", httpx.Wrap(d.giftSell))
 			r.Post("/gifts/{id}/claim", httpx.Wrap(d.giftClaim))
 		})
@@ -226,6 +229,9 @@ func (d *Deps) gameAdminRoutes(r chi.Router) {
 	r.With(d.adminAuth("gifts.write")).Post("/gifts/{id}/deliver", httpx.Wrap(d.adminDeliver))
 	r.With(d.adminAuth("gifts.write")).Post("/gifts/{id}/reject", httpx.Wrap(d.adminGiftReject))
 	r.With(d.adminAuth("dashboard.read")).Get("/games/guard", httpx.Wrap(d.adminGuard))
+	r.With(d.adminAuth("withdrawals.read")).Get("/star-withdrawals", httpx.Wrap(d.adminStarWdList))
+	r.With(d.adminAuth("withdrawals.write")).Post("/star-withdrawals/{id}/deliver", httpx.Wrap(d.adminStarWdDeliver))
+	r.With(d.adminAuth("withdrawals.write")).Post("/star-withdrawals/{id}/cancel", httpx.Wrap(d.adminStarWdCancel))
 	d.giftCatalogRoutes(r)
 	d.adProviderRoutes(r)
 }
