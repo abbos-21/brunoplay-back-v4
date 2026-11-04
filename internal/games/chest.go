@@ -172,7 +172,9 @@ func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang appe
 				return err
 			}
 		}
-		// the prize goes into one chest; the payout guard may take it out again (then all three are empty)
+		// the prize goes into one of the three chests, always. The payout guard does not apply here: the odds (1 in 3) and the
+		// multiplier already cap the return, and a round with three empty chests would look like a bug to the player.
+		// The prize counts as paid out only when its chest is opened (see award).
 		prizeSlot := int(randFloat() * ChestSlots)
 		if prizeSlot >= ChestSlots {
 			prizeSlot = ChestSlots - 1
@@ -182,16 +184,7 @@ func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang appe
 			prizes[i] = Prize{Type: TypeEmpty}
 		}
 		if win > 0 {
-			ok, err := s.winGuard(ctx, tx, playerID, GameChest, "round", win)
-			if err != nil {
-				return err
-			}
-			if ok {
-				prizes[prizeSlot] = Prize{Type: TypeStars, Value: win}
-				if err := s.recordPaid(ctx, tx, GameChest, "round", win); err != nil {
-					return err
-				}
-			}
+			prizes[prizeSlot] = Prize{Type: TypeStars, Value: win}
 		}
 		b, _ := json.Marshal(prizes)
 		var roundID int64
@@ -229,6 +222,10 @@ func (s *Service) award(ctx context.Context, tx pgx.Tx, playerID, roundID int64,
 		if _, err := ledger.Apply(ctx, tx, ledger.Entry{PlayerID: playerID, Currency: ledger.Star, Amount: p.Value, Reason: ledger.ReasonChestPrize,
 			RefType: "chest", RefID: ledger.RefID(roundID), IdemKey: fmt.Sprintf("chest:%d:%d", roundID, idx)}); err != nil && err != ledger.ErrDuplicate {
 			return 0, err
+		} else if err == nil {
+			if err := s.recordPaid(ctx, tx, GameChest, "round", p.Value); err != nil {
+				return 0, err
+			}
 		}
 		if err := s.feed(ctx, tx, playerID, GameChest, p, spentShare); err != nil {
 			return 0, err

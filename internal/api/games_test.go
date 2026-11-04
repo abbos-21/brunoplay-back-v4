@@ -532,20 +532,42 @@ func TestChestOldRoundsAreFinishedAtOnce(t *testing.T) {
 	}
 }
 
-func TestChestGuardTakesThePrizeOutOfTheChests(t *testing.T) {
+// The chest always holds its prize (the payout guard does not apply to it), and the payout statistics count a prize only when its
+// chest is opened, never when the round starts.
+func TestChestAlwaysHoldsThePrizeAndCountsItWhenOpened(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
 	e.setSetting(settings.KeyGuardRatio, 0.5)
 	e.setSetting(settings.KeyGuardMinVolume, 0)
 	p := e.login(523, "en", "")
-	e.give(p, ledger.Star, 1000)
-	e.do("POST", "/api/chest/round", p.Token, nil)
-	slot, stored := e.prizeSlotOf(t)
-	if slot >= 0 {
-		t.Fatalf("27 stars on a 10-star round is far above the limit: %s", stored)
+	e.give(p, ledger.Star, 10000)
+	paid := func() int64 {
+		var v int64
+		_ = e.d.Pool.QueryRow(context.Background(), `SELECT COALESCE(sum(paid),0) FROM payout_stats WHERE game='chest'`).Scan(&v)
+		return v
 	}
-	if e.countRows("guard_events") != 1 {
-		t.Fatal("the intervention is logged")
+	for i := 0; i < 20; i++ {
+		e.do("POST", "/api/chest/round", p.Token, nil)
+		slot, stored := e.prizeSlotOf(t)
+		if slot < 0 {
+			t.Fatalf("every round hides a prize, whatever the guard says: %s", stored)
+		}
+		before := paid()
+		pick := (slot + 1) % 3 // an empty chest
+		if i%2 == 0 {
+			pick = slot
+		}
+		e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": pick})
+		want := before
+		if pick == slot {
+			want += 27
+		}
+		if paid() != want {
+			t.Fatalf("round %d: paid %d, want %d (counted only when the prize chest is opened)", i, paid(), want)
+		}
+	}
+	if e.countRows("guard_events") != 0 {
+		t.Fatal("the guard never touches the chest")
 	}
 }
 
