@@ -2,19 +2,19 @@ package topup
 
 import "testing"
 
-func TestTonPriceIsAWholeNumberOfTon(t *testing.T) {
+func TestTonPriceHasTwoDecimals(t *testing.T) {
 	const perTon = 138.0 // stars per 1 TON
 	for _, c := range []struct {
 		stars int64
 		want  int64 // nanoTON
 	}{
-		{200, 2e9},    // 1.449... -> 2
-		{500, 4e9},    // 3.623... -> 4
-		{10000, 73e9}, // 72.46... -> 73
-		{138, 1e9},    // exactly 1 TON stays 1
-		{1, 1e9},      // never below 1 TON
-		{276, 2e9},    // exactly 2 TON stays 2
-		{277, 3e9},    // a little over 2 TON -> 3
+		{200, 1_450_000_000},    // 1.449... -> 1.45
+		{500, 3_620_000_000},    // 3.623... -> 3.62
+		{10000, 72_460_000_000}, // 72.463... -> 72.46
+		{138, 1_000_000_000},    // exactly 1 TON stays 1
+		{1, 10_000_000},         // 0.0072 -> never below 0.01
+		{276, 2_000_000_000},    // exactly 2 TON stays 2
+		{152, 1_100_000_000},    // 1.1014 -> 1.10
 	} {
 		if got := tonPrice(c.stars, perTon); got != c.want {
 			t.Errorf("tonPrice(%d) = %d, want %d", c.stars, got, c.want)
