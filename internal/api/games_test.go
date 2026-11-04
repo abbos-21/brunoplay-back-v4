@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"brunoplay/internal/admin"
+	"brunoplay/internal/gameday"
 	"brunoplay/internal/ledger"
 	"brunoplay/internal/settings"
 )
@@ -707,5 +708,17 @@ func TestRideNeedsConfigAndAdPaysOnlyWhenStarsRunOut(t *testing.T) {
 	}
 	if r := e.do("POST", "/api/ads", p.Token, map[string]any{"placement": "RIDE_FREE"}); r.Code(t) != "AD_LIMIT_REACHED" {
 		t.Fatalf("the daily limit of ad runs: %s", r.Body)
+	}
+	if info := e.do("GET", "/api/ride/me", p.Token, nil).JSON(t); info["adOffered"] != false || info["freeRunsLeft"].(float64) != 0 {
+		t.Fatalf("no ad run is offered after the daily one: %v", info)
+	}
+	// the counter is per UTC day: just after midnight one more ad run is offered
+	e.now = gameday.NextReset(e.now).Add(time.Minute)
+	if info := e.do("GET", "/api/ride/me", p.Token, nil).JSON(t); info["adOffered"] != true || info["freeRunsLeft"].(float64) != 1 {
+		t.Fatalf("the next day: %v", info)
+	}
+	ad2 := e.watchAd(p, "RIDE_FREE")
+	if r := e.do("POST", "/api/ride/start", p.Token, map[string]any{"adViewId": ad2}); r.Status != 200 || r.JSON(t)["paidWith"] != "AD" {
+		t.Fatalf("the ad run of the next day: %d %s", r.Status, r.Body)
 	}
 }
