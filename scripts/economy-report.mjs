@@ -36,10 +36,10 @@ console.log(`  levels 1-5 cost ${coinsToL5.toLocaleString()} coins in total; lev
 console.log('\n== What the games give back (a good game gives back less than it takes)')
 for (const t of S['spin.tiers']) {
   const r = spinRtp(S, t.tier)
-  console.log(`  spin ${pad(t.name_en, 9)} price ${rpad(t.price_stars, 5)}  average win ${rpad(r.ev.toFixed(1), 7)} stars  gives back ${pct(r.rtp)}  (Heart or Frog: ${(r.jackpotChance * 100).toFixed(2)}% of spins)`)
+  console.log(`  spin ${pad(t.name_en, 9)} price ${rpad(t.price_stars, 5)}  wins ${pct(r.winChance)} of the time and pays ${rpad(t.price_stars * S['spin.win_multiplier'], 6)} stars  gives back ${pct(r.rtp)}`)
 }
 const ch = chestRtp(S)
-console.log(`  chest round price ${S['chest.round_cost_stars']}  average win ${ch.round.toFixed(1)} stars  gives back ${pct(ch.rtp)}`)
+console.log(`  chest round price ${S['chest.round_cost_stars']}  one chest of 3 holds ${Math.round(S['chest.round_cost_stars'] * S['chest.prize_multiplier'])} stars  gives back ${pct(ch.rtp)}`)
 console.log(`  payout guard: a tier never pays more than ${pct(S['guard.max_payout_ratio'])} of what it took in over ${S['guard.window_hours']} h`)
 
 console.log('\n== What a player can earn for free')

@@ -74,14 +74,13 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 
 | Key | Type | Default | What it is |
 |---|---|---|---|
-| `chest.empty_weight` | float | `0` | Chest: weight of the EMPTY chest (opens with nothing), relative to the weights in chest.pool; 0 = no empty chests. The pool can have its own: add {"type":"empty","weight":N} |
-| `chest.picks_per_round` | int | `3` | Chests per round |
-| `chest.pool` | json | **required** | Chest prize pool [{type:coins/stars/gift,value,weight,gift}] |
+| `chest.prize_multiplier` | float | `2.7` | Chest: what the prize chest pays, as a multiple of the round price. Every round has 3 chests and one holds the prize, the player opens one, so the chance is 1 in 3: 3 pays back 100%, 2.7 pays back 90% |
 | `chest.round_cost_stars` | int | **required** | Chest round price (stars) |
 | `chest.round_expiry_hours` | int | `0` | Hours an unfinished chest round stays open (0 = forever) |
 | `gifts` | json | **required** | Gifts [{key,name_en,name_ru,star_value}] |
 | `guard.coin_value_stars` | float | `0` | Payout guard: how many stars one coin is worth when counting coin prizes (0 = coins are not counted) |
 | `guard.max_payout_ratio` | float | `0` | Payout guard: maximum payout ratio, e.g. 0.95 (0 = guard off) |
+| `guard.min_volume_multiple` | float | `10` | Payout guard: it only acts once a game tier has taken in at least this many times the winning amount during the guard window (so a quiet game is not blocked by one early win); 0 = always |
 | `guard.window_hours` | int | `24` | Payout guard window (hours) |
 | `ride.max_coins_per_day` | int | **required** | Coins a player can earn from Ride per day |
 | `ride.max_coins_per_second` | float | `8` | Most coins one can pick up per second |
@@ -90,10 +89,10 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ride.min_duration_seconds` | int | `3` | Shortest believable Ride run (seconds); the game itself cannot end a run before about 4.5 s, so keep this below that |
 | `ride.run_cost_stars` | int | **required** | Ride run price (stars) |
 | `ride.spawn_delay_seconds` | int | `3` | Seconds before obstacles and coins appear |
-| `spin.empty_weight` | float | `0` | Spin: weight of the EMPTY slot (a draw that wins nothing), relative to the weights in spin.odds; 0 = no empty slot. A tier can have its own: add "empty": weight to that tier in spin.odds |
-| `spin.odds` | json | **required** | Wheel odds {tier:{prize:weight}}. A prize is a gift key (heart), or coins:500, or stars:25. Weights are relative. |
 | `spin.publish_odds` | bool | `false` | Show the relative odds of the gifts to players (false = every gift shown with equal weight) |
 | `spin.tiers` | json | **required** | Spin tiers [{tier,price_stars}] |
+| `spin.win_chance_percent` | float | `45` | Spin: the chance in percent that a spin WINS (it then pays the price times spin.win_multiplier; otherwise nothing). 50 with a multiplier of 2 is a fair game that pays back 100%; 45 pays back 90% |
+| `spin.win_multiplier` | float | `2` | Spin: what a winning spin pays, as a multiple of the price (2 = the player gets double the stars they paid) |
 | `spin.winners_min_value` | int | `0` | Smallest prize worth, in stars, shown in the winners feed (0 = every prize) |
 
 ## levels
@@ -123,18 +122,6 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `notifications.idle_hours` | int | `12` | Hours without fishing before the 'start fishing' message |
 | `notifications.quiet_hours` | json | `map[from:-1 to:-1]` | Quiet hours in UTC {from,to} (null = none) |
 | `notifications.warn_hours` | json | `[6 1]` | Hours before the daily reset to warn |
-
-## smart
-
-| Key | Type | Default | What it is |
-|---|---|---|---|
-| `smart.enabled` | bool | `false` | Smart prizes ON: the spin and chest choose each prize from the player's own history instead of the weights (the weights stop being used). OFF = the normal weighted draw |
-| `smart.target_payback_percent` | float | `80` | Smart prizes: after the welcome plays the engine steers each player's total winnings toward this percent of everything they spent (80 = you keep 20%) |
-| `smart.welcome_gate_percent` | float | `90` | Smart prizes: welcome plays are given only while all players together were paid less than this percent of what they spent in the payout-guard window (checked per game tier; 90 = you keep at least about 10%, 100 = break-even, 0 = no limit). This is what keeps the project in profit when many new players arrive |
-| `smart.welcome_needs_topup` | bool | `true` | Smart prizes: the welcome plays start only after the player's first real top-up (Stars or TON) |
-| `smart.welcome_payback_percent` | float | `150` | Smart prizes: during the welcome plays the prizes pay back about this percent of what the player paid (150 = 1.5 times) |
-| `smart.welcome_plays_chest` | int | `5` | Smart prizes: how many of a player's first chest rounds get the bigger welcome prizes |
-| `smart.welcome_plays_spin` | int | `5` | Smart prizes: how many of a player's first spins (one draw = one play) get the bigger welcome prizes |
 
 ## system
 

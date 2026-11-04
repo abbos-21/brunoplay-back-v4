@@ -3,9 +3,6 @@ package settings
 import (
 	"encoding/json"
 	"errors"
-	"math"
-	"strconv"
-	"strings"
 )
 
 // Setting keys. A key with Default == nil is a value the owner must supply (ToR section 11).
@@ -95,14 +92,13 @@ const (
 
 	// games
 	KeySpinTiers        = "spin.tiers"
-	KeySpinOdds         = "spin.odds"
 	KeyGifts            = "gifts"
 	KeyChestCost        = "chest.round_cost_stars"
-	KeyChestPicks       = "chest.picks_per_round"
-	KeyChestPool        = "chest.pool"
 	KeyChestExpiryH     = "chest.round_expiry_hours"
-	KeySpinEmptyWeight  = "spin.empty_weight"
-	KeyChestEmptyWeight = "chest.empty_weight"
+	KeySpinWinChance    = "spin.win_chance_percent"
+	KeySpinWinMult      = "spin.win_multiplier"
+	KeyChestPrizeMult   = "chest.prize_multiplier"
+	KeyGuardMinVolume   = "guard.min_volume_multiple"
 	KeyRideCost         = "ride.run_cost_stars"
 	KeyRideMinSeconds   = "ride.min_duration_seconds"
 	KeyRideMaxSeconds   = "ride.max_duration_seconds"
@@ -116,14 +112,6 @@ const (
 	KeySpinPublishOdds  = "spin.publish_odds"
 	KeyGuardCoinValue   = "guard.coin_value_stars"
 
-	// smart prizes (spin and chest)
-	KeySmartEnabled      = "smart.enabled"
-	KeySmartWelcomeSpin  = "smart.welcome_plays_spin"
-	KeySmartWelcomeChest = "smart.welcome_plays_chest"
-	KeySmartWelcomePct   = "smart.welcome_payback_percent"
-	KeySmartTargetPct    = "smart.target_payback_percent"
-	KeySmartNeedsTopup   = "smart.welcome_needs_topup"
-	KeySmartGatePct      = "smart.welcome_gate_percent"
 
 	// friends and tasks
 	KeyRefLevelRewards = "referral.level_rewards"
@@ -158,39 +146,6 @@ func jsonObject(raw json.RawMessage) error {
 	var a map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &a); err != nil {
 		return errors.New("must be an object")
-	}
-	return nil
-}
-
-// spinOddsCheck validates the wheel odds: {tier:{prize:weight}}. A prize is a gift key ("heart"), or an amount of coins
-// ("coins:500") or of stars ("stars:25"). The weights are relative: only their proportions matter.
-func spinOddsCheck(raw json.RawMessage) error {
-	var odds map[string]map[string]float64
-	if err := json.Unmarshal(raw, &odds); err != nil {
-		return errors.New(`must look like {"TIER_1": {"apple": 40, "coins:500": 30, "stars:5": 10}}`)
-	}
-	for tier, row := range odds {
-		positive := false
-		for key, w := range row {
-			if math.IsNaN(w) || math.IsInf(w, 0) || w < 0 {
-				return errors.New("tier " + tier + ": the weight of " + key + " must be a number from 0 up")
-			}
-			if w > 0 {
-				positive = true
-			}
-			if strings.TrimSpace(key) == "" {
-				return errors.New("tier " + tier + ": a prize needs a name")
-			}
-			if kind, amount, ok := strings.Cut(key, ":"); ok {
-				n, err := strconv.ParseInt(amount, 10, 64)
-				if (kind != "coins" && kind != "stars") || err != nil || n <= 0 || n > 1_000_000_000 {
-					return errors.New("tier " + tier + `: "` + key + `" must be coins:AMOUNT or stars:AMOUNT with a whole number above 0, or a gift key`)
-				}
-			}
-		}
-		if !positive {
-			return errors.New("tier " + tier + " needs at least one prize with a weight above 0")
-		}
 	}
 	return nil
 }
@@ -347,14 +302,12 @@ func Registry() []Def {
 		s(KeyWdNoticeRU, "withdrawal", "Notice text on the history screen (Russian)", ""),
 
 		arr(KeySpinTiers, "games", "Spin tiers [{tier,price_stars}]", nil),
-		{Key: KeySpinOdds, Kind: KJSON, Group: "games", Desc: "Wheel odds {tier:{prize:weight}}. A prize is a gift key (heart), or coins:500, or stars:25. Weights are relative.", Check: spinOddsCheck},
 		arr(KeyGifts, "games", "Gifts [{key,name_en,name_ru,star_value}]", nil),
 		i(KeyChestCost, "games", "Chest round price (stars)", nil, 0, big),
-		i(KeyChestPicks, "games", "Chests per round", 3, 1, 12),
-		arr(KeyChestPool, "games", "Chest prize pool [{type:coins|stars|gift,value,weight,gift}]", nil),
 		i(KeyChestExpiryH, "games", "Hours an unfinished chest round stays open (0 = forever)", 0, 0, 100000),
-		fl(KeySpinEmptyWeight, "games", "Spin: weight of the EMPTY slot (a draw that wins nothing), relative to the weights in spin.odds; 0 = no empty slot. A tier can have its own: add \"empty\": weight to that tier in spin.odds", 0, 0, 1000000000),
-		fl(KeyChestEmptyWeight, "games", "Chest: weight of the EMPTY chest (opens with nothing), relative to the weights in chest.pool; 0 = no empty chests. The pool can have its own: add {\"type\":\"empty\",\"weight\":N}", 0, 0, 1000000000),
+		fl(KeySpinWinChance, "games", "Spin: the chance in percent that a spin WINS (it then pays the price times spin.win_multiplier; otherwise nothing). 50 with a multiplier of 2 is a fair game that pays back 100%; 45 pays back 90%", 45, 0, 100),
+		fl(KeySpinWinMult, "games", "Spin: what a winning spin pays, as a multiple of the price (2 = the player gets double the stars they paid)", 2, 1, 1000),
+		fl(KeyChestPrizeMult, "games", "Chest: what the prize chest pays, as a multiple of the round price. Every round has 3 chests and one holds the prize, the player opens one, so the chance is 1 in 3: 3 pays back 100%, 2.7 pays back 90%", 2.7, 1, 1000),
 		i(KeyRideCost, "games", "Ride run price (stars)", nil, 0, big),
 		i(KeyRideMinSeconds, "games", "Shortest believable Ride run (seconds); the game itself cannot end a run before about 4.5 s, so keep this below that", 3, 0, 3600),
 		i(KeyRideMaxSeconds, "games", "A run can be saved for this long after it starts (seconds)", 900, 30, 7200),
@@ -363,16 +316,10 @@ func Registry() []Def {
 		fl(KeyRideMaxPtsSec, "games", "Most score points per second (the game scores 60 per second)", 70, 0.1, 100000),
 		i(KeyRideDailyCoins, "games", "Coins a player can earn from Ride per day", nil, 0, big),
 		fl(KeyGuardRatio, "games", "Payout guard: maximum payout ratio, e.g. 0.95 (0 = guard off)", 0, 0, 10),
+		fl(KeyGuardMinVolume, "games", "Payout guard: it only acts once a game tier has taken in at least this many times the winning amount during the guard window (so a quiet game is not blocked by one early win); 0 = always", 10, 0, 100000),
 		i(KeyGuardWindowH, "games", "Payout guard window (hours)", 24, 1, 720),
 		b(KeySpinPublishOdds, "games", "Show the relative odds of the gifts to players (false = every gift shown with equal weight)", false),
 		fl(KeyGuardCoinValue, "games", "Payout guard: how many stars one coin is worth when counting coin prizes (0 = coins are not counted)", 0, 0, 1000000),
-		b(KeySmartEnabled, "smart", "Smart prizes ON: the spin and chest choose each prize from the player's own history instead of the weights (the weights stop being used). OFF = the normal weighted draw", false),
-		i(KeySmartWelcomeSpin, "smart", "Smart prizes: how many of a player's first spins (one draw = one play) get the bigger welcome prizes", 5, 0, 1000),
-		i(KeySmartWelcomeChest, "smart", "Smart prizes: how many of a player's first chest rounds get the bigger welcome prizes", 5, 0, 1000),
-		fl(KeySmartWelcomePct, "smart", "Smart prizes: during the welcome plays the prizes pay back about this percent of what the player paid (150 = 1.5 times)", 150, 100, 1000),
-		fl(KeySmartTargetPct, "smart", "Smart prizes: after the welcome plays the engine steers each player's total winnings toward this percent of everything they spent (80 = you keep 20%)", 80, 0, 100),
-		fl(KeySmartGatePct, "smart", "Smart prizes: welcome plays are given only while all players together were paid less than this percent of what they spent in the payout-guard window (checked per game tier; 90 = you keep at least about 10%, 100 = break-even, 0 = no limit). This is what keeps the project in profit when many new players arrive", 90, 0, 1000),
-		b(KeySmartNeedsTopup, "smart", "Smart prizes: the welcome plays start only after the player's first real top-up (Stars or TON)", true),
 		i(KeyWinnersMin, "games", "Smallest prize worth, in stars, shown in the winners feed (0 = every prize)", 0, 0, big),
 
 		obj(KeyRefLevelRewards, "friends", "Coins the inviter gets when a friend reaches a level: {\"2\":200,...}", nil),

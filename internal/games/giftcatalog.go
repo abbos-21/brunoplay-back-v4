@@ -101,20 +101,9 @@ func (s *Service) SaveCatalog(ctx context.Context, list []Gift, adminID int64) e
 	if err != nil {
 		return err
 	}
-	var odds, chest string
-	if b, e := s.settings.Raw(ctx, settings.KeySpinOdds); e == nil {
-		odds = string(b)
-	}
-	if b, e := s.settings.Raw(ctx, settings.KeyChestPool); e == nil {
-		chest = string(b)
-	}
 	for _, g := range old {
 		if seen[g.Key] {
 			continue
-		}
-		quoted := `"` + g.Key + `"`
-		if strings.Contains(odds, quoted) || strings.Contains(chest, quoted) {
-			return catalogErr("The gift %q is still used in the wheel odds or the chest pool: take it out there first", g.Key)
 		}
 		var open int
 		if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM player_gifts WHERE gift_key=$1 AND status IN ('OWNED','CLAIM_REQUESTED')`, g.Key).Scan(&open); err != nil {

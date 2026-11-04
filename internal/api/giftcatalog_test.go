@@ -71,7 +71,7 @@ func TestGiftCatalogAndPictures(t *testing.T) {
 		t.Fatalf("art list: %v", art)
 	}
 
-	// saving the list: a gift used in the odds cannot be removed; a new one can be added
+	// saving the list: a gift held by a player cannot be removed; a new one can be added
 	list := func(extra ...map[string]any) map[string]any {
 		g := []map[string]any{
 			{"key": "small", "name_en": "Small", "name_ru": "Малый", "star_value": 100},
@@ -79,7 +79,8 @@ func TestGiftCatalogAndPictures(t *testing.T) {
 		}
 		return map[string]any{"gifts": append(g, extra...)}
 	}
-	if r := e.do("PUT", "/api/admin/gifts/catalog", boss, list()); r.Code(t) != "GIFT_CATALOG_INVALID" { // "big" is in the odds
+	e.giveGift(p, "big", 100000)
+	if r := e.do("PUT", "/api/admin/gifts/catalog", boss, list()); r.Code(t) != "GIFT_CATALOG_INVALID" { // "big" is in a player's collection
 		t.Fatalf("remove a used gift: %d %s", r.Status, r.Body)
 	}
 	all := list(map[string]any{"key": "big", "name_en": "Big", "name_ru": "Большой", "star_value": 100000}, map[string]any{"key": "star-cup", "name_en": "Cup", "star_value": 50})

@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -56,36 +55,6 @@ func randFloat() float64 {
 		panic(err) // the system generator is unavailable: refuse to hand out prizes
 	}
 	return float64(binary.BigEndian.Uint64(b[:])>>11) / (1 << 53)
-}
-
-// pick draws one prize by weight.
-func pick(list []Prize) (Prize, error) {
-	var total float64
-	for _, p := range list {
-		if p.Weight > 0 {
-			total += p.Weight
-		}
-	}
-	if total <= 0 {
-		return Prize{}, apperr.ConfigMissing.With("key", "prize odds")
-	}
-	r := randFloat() * total
-	for _, p := range list {
-		if p.Weight <= 0 {
-			continue
-		}
-		if r < p.Weight {
-			return p, nil
-		}
-		r -= p.Weight
-	}
-	// floating point rounding: the last prize with weight
-	for i := len(list) - 1; i >= 0; i-- {
-		if list[i].Weight > 0 {
-			return list[i], nil
-		}
-	}
-	return Prize{}, apperr.ConfigMissing.With("key", "prize odds")
 }
 
 // ---- gifts config
@@ -185,70 +154,37 @@ func (s *Service) recordPaid(ctx context.Context, tx db.Querier, game, tier stri
 	return err
 }
 
-// guard re-rolls a drawn prize toward smaller ones while the rolling payout ratio of the game tier would exceed the limit.
-// It returns the prize to pay and whether it was changed. With the limit at 0 the guard is off.
-func (s *Service) guard(ctx context.Context, tx db.Querier, playerID int64, game, tier string, drawn Prize, pool []Prize, remaining int) (Prize, bool, error) {
+// winGuard is the safety net of the two-outcome games. A win of `win` stars is allowed unless paying it would push the payout ratio
+// of the game tier over guard.max_payout_ratio inside the guard window; then the win becomes a loss (and is logged). It acts only
+// once the tier has taken in at least guard.min_volume_multiple times the win amount in the window, so that a quiet game is not
+// blocked by one early win. With the ratio at 0 the guard is off. It returns whether the win is allowed.
+func (s *Service) winGuard(ctx context.Context, tx db.Querier, playerID int64, game, tier string, win int64) (bool, error) {
 	max, err := s.settings.Float(ctx, settings.KeyGuardRatio)
-	if err != nil || max <= 0 {
-		return drawn, false, nil
-	}
-	return s.guardAt(ctx, tx, playerID, game, tier, drawn, pool, remaining, max)
-}
-
-// guardAt is the guard with a given limit (the smart welcome plays use their own, higher one).
-func (s *Service) guardAt(ctx context.Context, tx db.Querier, playerID int64, game, tier string, drawn Prize, pool []Prize, remaining int, max float64) (Prize, bool, error) {
-	if max <= 0 {
-		return drawn, false, nil
+	if err != nil || max <= 0 || win <= 0 {
+		return true, nil
 	}
 	hours, err := s.settings.Int(ctx, settings.KeyGuardWindowH)
 	if err != nil {
-		return drawn, false, nil
+		return true, nil
 	}
 	var spent, paid int64
 	if err := tx.QueryRow(ctx, `SELECT COALESCE(sum(spent),0), COALESCE(sum(paid),0) FROM payout_stats WHERE game=$1 AND tier=$2 AND hour >= $3`,
 		game, tier, hourOf(s.now()).Add(-time.Duration(hours)*time.Hour)).Scan(&spent, &paid); err != nil {
-		return drawn, false, err
+		return true, err
 	}
 	if spent <= 0 {
-		return drawn, false, nil
+		return true, nil
 	}
-	cs := s.coinStars(ctx)
-	// an empty result is never a step-down: the guard turns a big prize into a smaller one, not into nothing
-	cands := make([]Prize, 0, len(pool))
-	for _, c := range pool {
-		if c.Type != TypeEmpty {
-			cands = append(cands, c)
-		}
+	if minVol, verr := s.settings.Float(ctx, settings.KeyGuardMinVolume); verr == nil && minVol > 0 && float64(spent) < minVol*float64(win) {
+		return true, nil
 	}
-	sort.SliceStable(cands, func(i, j int) bool { return s.starValue(cands[i], cs) > s.starValue(cands[j], cs) })
-	// the draws still to come in this purchase pay at least the smallest prize: keep room for them
-	var reserve int64
-	if n := len(cands); n > 0 {
-		reserve = int64(remaining) * s.starValue(cands[n-1], cs)
+	after := float64(paid+win) / float64(spent)
+	if after <= max {
+		return true, nil
 	}
-	ratio := func(v int64) float64 { return float64(paid+v+reserve) / float64(spent) }
-	dv := s.starValue(drawn, cs)
-	if ratio(dv) <= max {
-		return drawn, false, nil
-	}
-	chosen := drawn
-	for _, c := range cands {
-		cv := s.starValue(c, cs)
-		if cv >= dv {
-			continue
-		}
-		chosen = c
-		if ratio(cv) <= max {
-			break
-		}
-	}
-	if chosen.Key() == drawn.Key() {
-		return drawn, false, nil
-	}
-	cv := s.starValue(chosen, cs)
 	_, err = tx.Exec(ctx, `INSERT INTO guard_events (player_id, game, tier, from_key, to_key, from_value, to_value, ratio_after) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-		playerID, game, tier, drawn.Key(), chosen.Key(), dv, cv, ratio(cv))
-	return chosen, true, err
+		playerID, game, tier, Prize{Type: TypeStars, Value: win}.Key(), TypeEmpty+":0", win, 0, float64(paid)/float64(spent))
+	return false, err
 }
 
 // GuardStats is the live payout ratio per game and tier (admin).

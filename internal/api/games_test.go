@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -26,17 +27,7 @@ func (e *env) gamesConfig() {
 		{"tier": "TIER_1", "price_stars": 100, "name_en": "Bronze", "name_ru": "Бронза"},
 		{"tier": "TIER_2", "price_stars": 500, "name_en": "Silver"},
 	})
-	e.setSetting(settings.KeySpinOdds, map[string]any{
-		"TIER_1": map[string]float64{"small": 70, "mid": 30},
-		"TIER_2": map[string]float64{"small": 10, "mid": 60, "big": 30},
-	})
 	e.setSetting(settings.KeyChestCost, 10)
-	e.setSetting(settings.KeyChestPicks, 3)
-	e.setSetting(settings.KeyChestPool, []map[string]any{
-		{"type": "coins", "value": 100, "weight": 40},
-		{"type": "stars", "value": 5, "weight": 40},
-		{"type": "gift", "gift": "small", "weight": 20},
-	})
 	e.setSetting(settings.KeyRideCost, 1)
 	e.setSetting(settings.KeyRideDailyCoins, 100)
 }
@@ -51,102 +42,47 @@ func (e *env) ledgerSum(p player, cur string) int64 {
 	return s
 }
 
-// The wheel can pay coins and stars next to gifts: "coins:500" and "stars:25" in the odds table.
-func TestSpinCanPayCoinsAndStars(t *testing.T) {
-	e := newEnv(t)
-	e.gamesConfig()
-	e.setSetting(settings.KeySpinOdds, map[string]any{
-		"TIER_1": map[string]float64{"coins:500": 50, "stars:25": 50},
-		"TIER_2": map[string]float64{"small": 1},
-	})
-	p := e.login(520, "en", "")
-	e.give(p, ledger.Star, 10000)
-
-	// the player's tier list shows the coin and star prizes
-	tiers := e.do("GET", "/api/spin/tiers", p.Token, nil).JSON(t)["tiers"].([]any)
-	seen := map[string]bool{}
-	for _, pr := range tiers[0].(map[string]any)["prizes"].([]any) {
-		seen[pr.(map[string]any)["type"].(string)] = true
+// giveGift puts a gift into a player's collection (the games no longer hand gifts out; the collection still exists).
+func (e *env) giveGift(p player, key string, value int64) int64 {
+	e.t.Helper()
+	var id int64
+	if err := e.d.Pool.QueryRow(context.Background(), `INSERT INTO player_gifts (player_id, gift_key, star_value, status, source) VALUES ($1,$2,$3,'OWNED','spin') RETURNING id`,
+		p.ID, key, value).Scan(&id); err != nil {
+		e.t.Fatal(err)
 	}
-	if !seen["coins"] || !seen["stars"] || seen["gift"] {
-		t.Fatalf("tier 1 shows coins and stars only: %v", tiers[0])
-	}
-
-	starsBefore, coinsBefore := e.stars(p), e.coins(p)
-	r := e.spin(p, "TIER_1", 10)
-	if r.Status != 200 {
-		t.Fatalf("%d %s", r.Status, r.Body)
-	}
-	res := r.JSON(t)
-	var coinsWon, starsWon float64
-	for _, x := range res["results"].([]any) {
-		pr := x.(map[string]any)
-		switch pr["type"] {
-		case "coins":
-			if pr["value"].(float64) != 500 || pr["gift"] != nil {
-				t.Fatalf("coin prize: %v", pr)
-			}
-			coinsWon += 500
-		case "stars":
-			if pr["value"].(float64) != 25 {
-				t.Fatalf("star prize: %v", pr)
-			}
-			starsWon += 25
-		default:
-			t.Fatalf("only coins and stars are in this tier: %v", pr)
-		}
-	}
-	if res["totalCoinsWon"].(float64) != coinsWon || res["totalStarsWon"].(float64) != starsWon {
-		t.Fatalf("totals %v / %v against %v / %v", res["totalCoinsWon"], res["totalStarsWon"], coinsWon, starsWon)
-	}
-	if got := e.stars(p); got != starsBefore-1000+int64(starsWon) {
-		t.Fatalf("stars: paid 1,000, won %v: %d from %d", starsWon, got, starsBefore)
-	}
-	if got := e.coins(p); got != coinsBefore+int64(coinsWon) {
-		t.Fatalf("coins: won %v: %d from %d", coinsWon, got, coinsBefore)
-	}
-	if e.countRows("player_gifts") != 0 || e.countRows("spin_draws") != 10 {
-		t.Fatalf("no gifts, ten logged draws: gifts=%d draws=%d", e.countRows("player_gifts"), e.countRows("spin_draws"))
-	}
-	if e.ledgerSum(p, "STAR") != e.stars(p) {
-		t.Fatalf("ledger %d vs balance %d", e.ledgerSum(p, "STAR"), e.stars(p))
-	}
-
-	// the settings form refuses a malformed prize
-	for _, bad := range []map[string]any{
-		{"TIER_1": map[string]float64{"coins:abc": 1}},
-		{"TIER_1": map[string]float64{"gems:5": 1}},
-		{"TIER_1": map[string]float64{"coins:0": 1}},
-		{"TIER_1": map[string]float64{"coins:500": 0}},
-	} {
-		if _, err := e.d.Settings.Validate(settings.KeySpinOdds, bad); err == nil {
-			t.Errorf("must be refused: %v", bad)
-		}
-	}
-	if _, err := e.d.Settings.Validate(settings.KeySpinOdds, map[string]any{"TIER_1": map[string]float64{"apple": 3, "coins:500": 2, "stars:5": 1}}); err != nil {
-		t.Errorf("a valid mix must pass: %v", err)
-	}
+	return id
 }
 
-func TestSpinChargesDrawsAndStoresGifts(t *testing.T) {
+func (e *env) countRows(table string) int {
+	var n int
+	_ = e.d.Pool.QueryRow(context.Background(), `SELECT count(*) FROM `+table).Scan(&n)
+	return n
+}
+
+// The wheel has two outcomes: nothing, or the price times the multiplier in stars.
+func TestSpinTwoOutcomes(t *testing.T) {
 	e := newEnv(t)
-	p := e.login(500, "ru", "")
-	if r := e.do("GET", "/api/spin/tiers", p.Token, nil); r.Code(t) != "CONFIG_MISSING" {
-		t.Fatalf("%s", r.Body)
-	}
 	e.gamesConfig()
+	p := e.login(500, "ru", "")
+	if r := e.do("GET", "/api/spin/tiers", p.Token, nil); r.Status != 200 {
+		t.Fatalf("%d %s", r.Status, r.Body)
+	}
 	tiers := e.do("GET", "/api/spin/tiers", p.Token, nil).JSON(t)["tiers"].([]any)
 	if len(tiers) != 2 || tiers[0].(map[string]any)["name"] != "Бронза" || tiers[0].(map[string]any)["costStars"].(float64) != 100 || tiers[1].(map[string]any)["name"] != "Silver" {
 		t.Fatalf("%v", tiers)
 	}
-	for _, pr := range tiers[1].(map[string]any)["prizes"].([]any) {
-		if pr.(map[string]any)["weight"].(float64) != 1 {
-			t.Fatalf("odds are hidden unless published: %v", pr)
-		}
+	// each tier shows the win and the empty outcome, the odds hidden until published
+	t1 := tiers[0].(map[string]any)["prizes"].([]any)
+	if len(t1) != 2 || t1[0].(map[string]any)["type"] != "stars" || t1[0].(map[string]any)["value"].(float64) != 200 || t1[1].(map[string]any)["type"] != "empty" {
+		t.Fatalf("tier 1 shows a 200-star win and nothing: %v", t1)
+	}
+	if t1[0].(map[string]any)["weight"].(float64) != 1 || t1[1].(map[string]any)["weight"].(float64) != 1 {
+		t.Fatalf("odds are hidden unless published: %v", t1)
 	}
 	e.setSetting(settings.KeySpinPublishOdds, true)
-	if w := e.do("GET", "/api/spin/tiers", p.Token, nil).JSON(t)["tiers"].([]any)[1].(map[string]any)["prizes"].([]any); w[0].(map[string]any)["weight"].(float64) == 1 && w[1].(map[string]any)["weight"].(float64) == 1 {
-		t.Fatalf("published odds: %v", w)
+	t1 = e.do("GET", "/api/spin/tiers", p.Token, nil).JSON(t)["tiers"].([]any)[0].(map[string]any)["prizes"].([]any)
+	if t1[0].(map[string]any)["weight"].(float64) != 45 || t1[1].(map[string]any)["weight"].(float64) != 55 {
+		t.Fatalf("published odds are the win chance and its rest: %v", t1)
 	}
 
 	for _, bad := range []struct {
@@ -160,115 +96,122 @@ func TestSpinChargesDrawsAndStoresGifts(t *testing.T) {
 	if r := e.spin(p, "TIER_1", 1); r.Code(t) != "INSUFFICIENT_STARS" {
 		t.Fatalf("%s", r.Body)
 	}
-	if n := e.countRows("player_gifts"); n != 0 || e.stars(p) != 0 {
-		t.Fatalf("a refused spin leaves nothing behind: gifts=%d stars=%d", n, e.stars(p))
+	if e.stars(p) != 0 || e.countRows("spin_draws") != 0 {
+		t.Fatal("a refused spin leaves nothing behind")
 	}
 
-	e.give(p, ledger.Star, 2000)
-	r := e.spin(p, "TIER_1", 1)
-	if r.Status != 200 {
-		t.Fatalf("%d %s", r.Status, r.Body)
+	// every spin wins: 3 spins cost 300 and pay 3 x 200
+	e.setSetting(settings.KeySpinWinChance, 100)
+	e.give(p, ledger.Star, 1000)
+	res := e.spin(p, "TIER_1", 3).JSON(t)
+	if res["spent"].(float64) != 300 || res["totalStarsWon"].(float64) != 600 || len(res["results"].([]any)) != 3 || e.stars(p) != 1300 {
+		t.Fatalf("three wins: %v stars=%d", res, e.stars(p))
 	}
-	res := r.JSON(t)
-	if e.stars(p) != 1900 || res["spent"].(float64) != 100 || len(res["results"].([]any)) != 1 {
-		t.Fatalf("one spin costs one price: %v stars=%d", res, e.stars(p))
+	for _, x := range res["results"].([]any) {
+		if pr := x.(map[string]any); pr["type"] != "stars" || pr["value"].(float64) != 200 {
+			t.Fatalf("a win pays the price times two: %v", pr)
+		}
 	}
-	pr := res["results"].([]any)[0].(map[string]any)
-	if pr["type"] != "gift" || (pr["gift"] != "small" && pr["gift"] != "mid") || pr["giftId"].(float64) == 0 {
-		t.Fatalf("tier 1 gives small or mid gifts: %v", pr)
+
+	// no spin wins: the price is gone and nothing comes back
+	e.setSetting(settings.KeySpinWinChance, 0)
+	res = e.spin(p, "TIER_1", 5).JSON(t)
+	if res["totalStarsWon"].(float64) != 0 || e.stars(p) != 800 {
+		t.Fatalf("five losses: %v stars=%d", res, e.stars(p))
 	}
-	// 10 spins are charged at once and every result is stored
-	r = e.spin(p, "TIER_2", 10)
-	if r.Status != 200 || len(r.JSON(t)["results"].([]any)) != 10 || e.stars(p) != 1900-5000+0 && e.stars(p) != -3100 {
-		// not enough: 5,000 needed
+	for _, x := range res["results"].([]any) {
+		if pr := x.(map[string]any); pr["type"] != "empty" || pr["value"].(float64) != 0 || pr["label"] != "Пусто" {
+			t.Fatalf("a loss is empty: %v", pr)
+		}
 	}
-	if r.Code(t) != "INSUFFICIENT_STARS" {
-		t.Fatalf("5,000 stars needed: %d %s", r.Status, r.Body)
-	}
-	e.give(p, ledger.Star, 4000)
-	r = e.spin(p, "TIER_2", 10)
-	if r.Status != 200 || len(r.JSON(t)["results"].([]any)) != 10 || e.stars(p) != 900 {
-		t.Fatalf("10x: %d %s stars=%d", r.Status, r.Body, e.stars(p))
-	}
-	if n := e.countRows("player_gifts"); n != 11 {
-		t.Fatalf("gifts in the collection: %d", n)
-	}
-	if n := e.countRows("spin_draws"); n != 11 {
-		t.Fatalf("draw log: %d", n)
+	if e.countRows("spin_draws") != 8 || e.countRows("player_gifts") != 0 {
+		t.Fatalf("eight logged draws and no gifts: %d %d", e.countRows("spin_draws"), e.countRows("player_gifts"))
 	}
 	if e.ledgerSum(p, "STAR") != e.stars(p) {
 		t.Fatalf("ledger %d vs balance %d", e.ledgerSum(p, "STAR"), e.stars(p))
 	}
-	// the winners feed shows @username
+	// the winners feed lists the wins, never the losses
 	w := e.do("GET", "/api/spin/winners", p.Token, nil).JSON(t)
-	list := w["data"].([]any)
-	if len(list) == 0 || list[0].(map[string]any)["username"] != "user500" || w["total"].(float64) != 11 {
+	if w["total"].(float64) != 3 || w["data"].([]any)[0].(map[string]any)["username"] != "user500" || w["data"].([]any)[0].(map[string]any)["prizeType"] != "stars" {
 		t.Fatalf("winners: %v", w)
 	}
-	// the gift list is in the player's language
-	g := e.do("GET", "/api/gifts", p.Token, nil).JSON(t)["gifts"].([]any)
-	if len(g) != 11 || g[0].(map[string]any)["status"] != "OWNED" || !strings.ContainsAny(g[0].(map[string]any)["name"].(string), "МСБ") {
-		t.Fatalf("gifts: %v", g[0])
+}
+
+// The multiplier is an editable setting: 2.5 on a 100-star spin pays 250.
+func TestSpinMultiplierAndChanceSettings(t *testing.T) {
+	e := newEnv(t)
+	e.gamesConfig()
+	e.setSetting(settings.KeySpinWinChance, 100)
+	e.setSetting(settings.KeySpinWinMult, 2.5)
+	p := e.login(501, "en", "")
+	e.give(p, ledger.Star, 100)
+	res := e.spin(p, "TIER_1", 1).JSON(t)
+	if res["totalStarsWon"].(float64) != 250 || e.stars(p) != 250 {
+		t.Fatalf("100 stars paid, 250 won: %v stars=%d", res, e.stars(p))
+	}
+	for _, bad := range []struct {
+		key string
+		v   any
+	}{{settings.KeySpinWinChance, 101}, {settings.KeySpinWinChance, -1}, {settings.KeySpinWinMult, 0.5}, {settings.KeyChestPrizeMult, 0}} {
+		if _, err := e.d.Settings.Validate(bad.key, bad.v); err == nil {
+			t.Errorf("%s = %v must be refused", bad.key, bad.v)
+		}
 	}
 }
 
-func (e *env) countRows(table string) int {
-	var n int
-	_ = e.d.Pool.QueryRow(context.Background(), `SELECT count(*) FROM `+table).Scan(&n)
-	return n
-}
-
-func TestSpinOddsAreRespected(t *testing.T) {
+// Over many spins the win chance is what the setting says.
+func TestSpinWinChanceIsRespected(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
-	p := e.login(501, "en", "")
+	e.setSetting(settings.KeySpinWinChance, 40)
+	p := e.login(502, "en", "")
 	e.give(p, ledger.Star, 1000000)
 	for i := 0; i < 150; i++ {
 		if r := e.spin(p, "TIER_1", 10); r.Status != 200 {
 			t.Fatalf("%d %s", r.Status, r.Body)
 		}
 	}
-	var small, mid int
-	_ = e.d.Pool.QueryRow(context.Background(), `SELECT count(*) FILTER (WHERE gift_key='small'), count(*) FILTER (WHERE gift_key='mid') FROM spin_draws`).Scan(&small, &mid)
-	frac := float64(small) / float64(small+mid)
-	if small+mid != 1500 || frac < 0.65 || frac > 0.75 {
-		t.Fatalf("70/30 odds over 1500 draws: small=%d mid=%d (%.3f)", small, mid, frac)
+	var wins, all int
+	_ = e.d.Pool.QueryRow(context.Background(), `SELECT count(*) FILTER (WHERE gift_key LIKE 'stars:%'), count(*) FROM spin_draws`).Scan(&wins, &all)
+	frac := float64(wins) / float64(all)
+	if all != 1500 || frac < 0.35 || frac > 0.45 {
+		t.Fatalf("40%% over 1500 draws: wins=%d (%.3f)", wins, frac)
 	}
 }
 
-func TestPayoutGuardStepsBigPrizesDown(t *testing.T) {
+// The payout guard turns a win into a loss while the tier's payout ratio would go over the limit.
+func TestPayoutGuardTurnsWinsIntoLosses(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
-	// tier 2 mostly gives "big" (100,000) for a 500-star spin
-	e.setSetting(settings.KeySpinOdds, map[string]any{"TIER_1": map[string]float64{"small": 1}, "TIER_2": map[string]float64{"big": 100}})
-	p := e.login(502, "en", "")
+	e.setSetting(settings.KeySpinWinChance, 100)
+	p := e.login(503, "en", "")
 	e.give(p, ledger.Star, 1000000)
 
-	// guard off: the drawn prize is paid
-	if r := e.spin(p, "TIER_2", 1); r.JSON(t)["results"].([]any)[0].(map[string]any)["gift"] != "big" {
-		t.Fatalf("guard off pays what was drawn: %s", r.Body)
+	// guard off: every win is paid
+	if r := e.spin(p, "TIER_1", 1); r.JSON(t)["totalStarsWon"].(float64) != 200 {
+		t.Fatalf("guard off pays the win: %s", r.Body)
 	}
 	if e.countRows("guard_events") != 0 {
 		t.Fatal("no events with the guard off")
 	}
-	// guard on at 300 %: 100,000 on a 500 spin is far above, the draw is stepped down to the smallest gift
-	e.setSetting(settings.KeyGuardRatio, 3.0)
+	// guard on at 50 %, acting from the first spin: 200 won against 100 spent is far above
+	e.setSetting(settings.KeyGuardRatio, 0.5)
+	e.setSetting(settings.KeyGuardMinVolume, 0)
 	r := e.spin(p, "TIER_2", 1)
-	if got := r.JSON(t)["results"].([]any)[0].(map[string]any)["gift"]; got != "small" {
-		t.Fatalf("guard must step down to the smallest prize in the pool, got %v", got)
-	}
-	if e.countRows("guard_events") == 0 {
-		t.Fatal("every intervention is logged")
+	if got := r.JSON(t)["results"].([]any)[0].(map[string]any)["type"]; got != "empty" {
+		t.Fatalf("the guard must turn the win into a loss, got %v", got)
 	}
 	var from, to string
-	_ = e.d.Pool.QueryRow(context.Background(), `SELECT from_key, to_key FROM guard_events ORDER BY id DESC LIMIT 1`).Scan(&from, &to)
-	if from != "gift:big" || to != "gift:small" {
+	if err := e.d.Pool.QueryRow(context.Background(), `SELECT from_key, to_key FROM guard_events ORDER BY id DESC LIMIT 1`).Scan(&from, &to); err != nil {
+		t.Fatal("every intervention is logged: ", err)
+	}
+	if from != "stars:1000" || to != "empty:0" {
 		t.Fatalf("event: %s -> %s", from, to)
 	}
-	// the draw log keeps what the odds gave and what was paid
+	// the draw log keeps what the dice gave and what was paid
 	var drawn, paid string
 	_ = e.d.Pool.QueryRow(context.Background(), `SELECT drawn_key, gift_key FROM spin_draws ORDER BY id DESC LIMIT 1`).Scan(&drawn, &paid)
-	if drawn != "big" || paid != "small" {
+	if drawn != "stars:1000" || paid != "empty" {
 		t.Fatalf("draw log: drawn=%s paid=%s", drawn, paid)
 	}
 	// the admin sees the live ratio and the interventions
@@ -279,24 +222,30 @@ func TestPayoutGuardStepsBigPrizesDown(t *testing.T) {
 	}
 }
 
-func TestGuardLetsPrizesThroughWhileRatioIsLow(t *testing.T) {
+// A quiet game is not blocked by one early win: the guard waits for some volume (guard.min_volume_multiple).
+func TestGuardWaitsForVolumeAndKeepsTheRatioUnderTheLimit(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
-	e.setSetting(settings.KeySpinOdds, map[string]any{"TIER_1": map[string]float64{"small": 1, "mid": 1}, "TIER_2": map[string]float64{"small": 1}})
+	e.setSetting(settings.KeySpinWinChance, 100)
 	e.setSetting(settings.KeyGuardRatio, 1.2) // pay out at most 120% of what was spent
-	p := e.login(503, "en", "")
+	p := e.login(504, "en", "")
 	e.give(p, ledger.Star, 10000000)
+
+	// the default minimum is 10 times the win: 100 spent is far below 10 x 200, so the first win goes out
+	if r := e.spin(p, "TIER_1", 1); r.JSON(t)["totalStarsWon"].(float64) != 200 || e.countRows("guard_events") != 0 {
+		t.Fatalf("the first win of a quiet game is paid: %s", r.Body)
+	}
+	// with volume, the ratio never runs above the limit even though every spin would win
 	for i := 0; i < 40; i++ {
 		e.spin(p, "TIER_1", 10)
 	}
-	var spent, paid int64
-	_ = e.d.Pool.QueryRow(context.Background(), `SELECT sum(spent), sum(paid) FROM payout_stats WHERE game='spin' AND tier='TIER_1'`).Scan(&spent, &paid)
-	// the smallest gift (100) equals the price (100), so the ratio can always be met: it must not run away above the limit
-	if float64(paid)/float64(spent) > 1.2+0.0001 {
-		t.Fatalf("payout ratio %.3f exceeds the guard limit", float64(paid)/float64(spent))
+	var spent, paidOut int64
+	_ = e.d.Pool.QueryRow(context.Background(), `SELECT sum(spent), sum(paid) FROM payout_stats WHERE game='spin' AND tier='TIER_1'`).Scan(&spent, &paidOut)
+	if float64(paidOut)/float64(spent) > 1.2+200.0/float64(spent) {
+		t.Fatalf("payout ratio %.3f runs away above the guard limit", float64(paidOut)/float64(spent))
 	}
-	if paid == 0 {
-		t.Fatal("prizes still go out")
+	if paidOut == 0 || e.countRows("guard_events") == 0 {
+		t.Fatal("wins still go out, and the guard did step in")
 	}
 }
 
@@ -305,7 +254,9 @@ func TestGiftSellClaimDeliverReject(t *testing.T) {
 	e.gamesConfig()
 	p, q := e.login(510, "en", ""), e.login(511, "en", "")
 	e.give(p, ledger.Star, 1000)
-	e.spin(p, "TIER_1", 3)
+	e.giveGift(p, "small", 100)
+	e.giveGift(p, "mid", 1000)
+	e.giveGift(p, "small", 100)
 	gifts := e.do("GET", "/api/gifts", p.Token, nil).JSON(t)["gifts"].([]any)
 	id := func(i int) int64 { return int64(gifts[i].(map[string]any)["id"].(float64)) }
 	val := func(i int) int64 { return int64(gifts[i].(map[string]any)["starValue"].(float64)) }
@@ -377,23 +328,55 @@ func TestWinnersFeedThreshold(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
 	e.setSetting(settings.KeyWinnersMin, 1000)
+	e.setSetting(settings.KeySpinWinChance, 100)
 	p := e.login(512, "en", "")
 	e.give(p, ledger.Star, 1000000)
-	for i := 0; i < 10; i++ {
-		e.spin(p, "TIER_2", 10)
+	for i := 0; i < 5; i++ {
+		e.spin(p, "TIER_1", 10) // wins of 200
+		e.spin(p, "TIER_2", 10) // wins of 1,000
 	}
 	var below int
 	_ = e.d.Pool.QueryRow(context.Background(), `SELECT count(*) FROM winners_feed WHERE prize_value < 1000`).Scan(&below)
-	if below != 0 || e.countRows("winners_feed") == 0 {
-		t.Fatalf("only gifts worth at least the threshold are listed: below=%d total=%d", below, e.countRows("winners_feed"))
+	if below != 0 || e.countRows("winners_feed") != 50 {
+		t.Fatalf("only wins worth at least the threshold are listed: below=%d total=%d", below, e.countRows("winners_feed"))
 	}
 }
 
 // ---------------------------------------------------------------- chest
 
-func TestChestRoundPaysOnceDrawsAtPaymentAndResumes(t *testing.T) {
+// prizeSlotOf reads the open round's hidden chests and returns the slot of the prize (-1 when all three are empty).
+func (e *env) prizeSlotOf(t *testing.T) (int, string) {
+	t.Helper()
+	var stored string
+	if err := e.d.Pool.QueryRow(context.Background(), `SELECT prizes::text FROM chest_rounds WHERE status='OPEN'`).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	var list []struct {
+		Type  string `json:"type"`
+		Value int64  `json:"value"`
+	}
+	if err := json.Unmarshal([]byte(stored), &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 3 {
+		t.Fatalf("three chests: %s", stored)
+	}
+	slot := -1
+	for i, x := range list {
+		if x.Type == "stars" {
+			if slot >= 0 {
+				t.Fatalf("only one chest holds the prize: %s", stored)
+			}
+			slot = i
+		}
+	}
+	return slot, stored
+}
+
+func TestChestRoundHidesOnePrizeInThreeChests(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
+	e.setSetting(settings.KeyChestPrizeMult, 3) // 10 stars -> 30
 	p := e.login(520, "en", "")
 	if r := e.do("POST", "/api/chest/round", p.Token, nil); r.Code(t) != "INSUFFICIENT_STARS" {
 		t.Fatalf("%s", r.Body)
@@ -410,7 +393,7 @@ func TestChestRoundPaysOnceDrawsAtPaymentAndResumes(t *testing.T) {
 		t.Fatalf("round: %d %s stars=%d", r.Status, r.Body, e.stars(p))
 	}
 	st := r.JSON(t)
-	if st["round"].(map[string]any)["remaining"].(float64) != 3 || st["roundCostStars"].(float64) != 10 {
+	if st["round"].(map[string]any)["remaining"].(float64) != 1 || st["roundCostStars"].(float64) != 10 || st["winStars"].(float64) != 30 || st["picksPerRound"].(float64) != 1 {
 		t.Fatalf("%v", st)
 	}
 	if strings.Contains(string(r.Body), "prizes") {
@@ -419,88 +402,95 @@ func TestChestRoundPaysOnceDrawsAtPaymentAndResumes(t *testing.T) {
 	if r := e.do("POST", "/api/chest/round", p.Token, nil); r.Code(t) != "CHEST_ROUND_OPEN" {
 		t.Fatalf("one round at a time: %s", r.Body)
 	}
-	// the prizes exist from the moment of payment
-	var stored string
-	_ = e.d.Pool.QueryRow(context.Background(), `SELECT prizes::text FROM chest_rounds`).Scan(&stored)
-	if strings.Count(stored, `"type"`) != 3 {
-		t.Fatalf("three prizes drawn at payment: %s", stored)
+	// the prize is in exactly one of the three chests from the moment of payment
+	prizeSlot, _ := e.prizeSlotOf(t)
+	if prizeSlot < 0 {
+		t.Fatal("with the guard off the prize is always in one chest")
+	}
+	if r := e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 3}); r.Status < 400 {
+		t.Fatalf("there are only three chests: %d", r.Status)
 	}
 
-	// open one chest, "leave", come back: the round continues
-	p0 := e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 1}).JSON(t)
-	if p0["remaining"].(float64) != 2 || p0["finished"] != false {
-		t.Fatalf("%v", p0)
+	// open the prize chest: 30 stars, the round is over, the others are revealed
+	got := e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": prizeSlot}).JSON(t)
+	if got["finished"] != true || got["prize"].(map[string]any)["type"] != "stars" || got["prize"].(map[string]any)["value"].(float64) != 30 || got["totalStarsWon"].(float64) != 30 {
+		t.Fatalf("the prize chest: %v", got)
 	}
-	again := e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 1}).JSON(t)
-	if again["prize"].(map[string]any)["type"] != p0["prize"].(map[string]any)["type"] || again["remaining"].(float64) != 2 {
-		t.Fatalf("the same chest shows the same prize: %v vs %v", again, p0)
+	reveal := got["reveal"].([]any)
+	if len(reveal) != 3 || reveal[prizeSlot].(map[string]any)["type"] != "stars" {
+		t.Fatalf("the app learns where the prize was: %v", reveal)
 	}
-	state := e.do("GET", "/api/chest", p.Token, nil).JSON(t)["round"].(map[string]any)
-	if state["remaining"].(float64) != 2 || len(state["opened"].([]any)) != 1 {
-		t.Fatalf("resume: %v", state)
+	if e.stars(p) != 120 || e.ledgerSum(p, "STAR") != e.stars(p) {
+		t.Fatalf("90 + 30: %d (ledger %d)", e.stars(p), e.ledgerSum(p, "STAR"))
 	}
-	if r := e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 12}); r.Status < 400 {
-		t.Fatalf("a slot beyond the chests on screen: %d", r.Status)
+	if r := e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": prizeSlot}); r.Code(t) != "CHEST_NO_ROUND" {
+		t.Fatalf("a finished round cannot be opened again: %s", r.Body)
 	}
-	// any of the chests on screen can be opened, not only the first three
-	e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 7})
-	last := e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 8}).JSON(t)
-	if last["finished"] != true || len(last["results"].([]any)) != 3 {
-		t.Fatalf("finished: %v", last)
+
+	// a new round; this time open an empty chest: nothing is paid
+	e.do("POST", "/api/chest/round", p.Token, nil)
+	slot, _ := e.prizeSlotOf(t)
+	empty := (slot + 1) % 3
+	got = e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": empty}).JSON(t)
+	if got["finished"] != true || got["prize"].(map[string]any)["type"] != "empty" || got["prize"].(map[string]any)["label"] != "Empty" {
+		t.Fatalf("an empty chest: %v", got)
 	}
-	// every prize reached the player exactly once
-	var wantCoins, wantStars int64
-	var gifts int
-	for _, x := range last["results"].([]any) {
-		m := x.(map[string]any)
-		switch m["type"] {
-		case "coins":
-			wantCoins += int64(m["value"].(float64))
-		case "stars":
-			wantStars += int64(m["value"].(float64))
-		case "gift":
-			gifts++
+	if e.stars(p) != 110 || e.ledgerSum(p, "STAR") != e.stars(p) {
+		t.Fatalf("120 - 10, nothing back: %d", e.stars(p))
+	}
+}
+
+// One round in three is a win for a player who opens always the same chest: the chance is 1 in 3.
+func TestChestOneInThree(t *testing.T) {
+	e := newEnv(t)
+	e.gamesConfig()
+	p := e.login(524, "en", "")
+	e.give(p, ledger.Star, 100000)
+	wins := 0
+	for i := 0; i < 300; i++ {
+		if r := e.do("POST", "/api/chest/round", p.Token, nil); r.Status != 200 {
+			t.Fatalf("%d %s", r.Status, r.Body)
+		}
+		if e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 0}).JSON(t)["prize"].(map[string]any)["type"] == "stars" {
+			wins++
 		}
 	}
-	if e.coins(p) != wantCoins || e.stars(p) != 90+wantStars || e.countRows("player_gifts") != gifts {
-		t.Fatalf("prizes: coins=%d/%d stars=%d/%d gifts=%d/%d", e.coins(p), wantCoins, e.stars(p), 90+wantStars, e.countRows("player_gifts"), gifts)
+	if wins < 70 || wins > 130 {
+		t.Fatalf("one chest in three over 300 rounds: %d wins", wins)
 	}
-	if e.ledgerSum(p, "COIN") != e.coins(p) || e.ledgerSum(p, "STAR") != e.stars(p) {
-		t.Fatal("ledger and balances must agree")
-	}
-	// a new round can be bought now
-	if r := e.do("POST", "/api/chest/round", p.Token, nil); r.Status != 200 {
-		t.Fatalf("%d %s", r.Status, r.Body)
+	// the prize is the price times 2.7 (rounded)
+	if want := int64(wins)*27 + (100000 - 3000); e.stars(p) != want {
+		t.Fatalf("stars %d, want %d", e.stars(p), want)
 	}
 }
 
 func TestChestConcurrentPicksOfOneSlotPayOnce(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
-	e.setSetting(settings.KeyChestPool, []map[string]any{{"type": "coins", "value": 100, "weight": 1}})
+	e.setSetting(settings.KeyChestPrizeMult, 3)
 	p := e.login(521, "en", "")
 	e.give(p, ledger.Star, 100)
 	e.do("POST", "/api/chest/round", p.Token, nil)
+	slot, _ := e.prizeSlotOf(t)
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
-		go func() { defer wg.Done(); e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 0}) }()
+		go func() { defer wg.Done(); e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": slot}) }()
 	}
 	wg.Wait()
-	if e.coins(p) != 100 {
-		t.Fatalf("one chest = one prize: %d", e.coins(p))
+	if e.stars(p) != 90+30 {
+		t.Fatalf("one chest = one prize: %d", e.stars(p))
 	}
 }
 
+// A round nobody finishes is opened by the worker: one chest, chosen at random, so a player never loses what they paid.
 func TestChestStaleRoundIsFinishedForThePlayer(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
-	e.setSetting(settings.KeyChestPool, []map[string]any{{"type": "coins", "value": 100, "weight": 1}})
 	e.setSetting(settings.KeyChestExpiryH, 1)
 	p := e.login(522, "en", "")
 	e.give(p, ledger.Star, 100)
 	e.do("POST", "/api/chest/round", p.Token, nil)
-	e.do("POST", "/api/chest/pick", p.Token, map[string]any{"slot": 0})
 	e.now = e.now.Add(30 * time.Minute)
 	if n, _ := e.d.Games.FinishStaleRounds(context.Background()); n != 0 {
 		t.Fatalf("not stale yet: %d", n)
@@ -509,26 +499,53 @@ func TestChestStaleRoundIsFinishedForThePlayer(t *testing.T) {
 	if n, err := e.d.Games.FinishStaleRounds(context.Background()); err != nil || n != 1 {
 		t.Fatalf("stale: %d %v", n, err)
 	}
-	if e.coins(p) != 300 {
-		t.Fatalf("the remaining two chests are opened for the player: coins %d", e.coins(p))
+	if s := e.stars(p); s != 90 && s != 90+27 {
+		t.Fatalf("a random chest was opened for the player: stars %d", s)
 	}
-	if n, _ := e.d.Games.FinishStaleRounds(context.Background()); n != 0 || e.coins(p) != 300 {
+	if e.countRows("chest_rounds WHERE status='OPEN'") != 0 {
+		t.Fatal("the round is over")
+	}
+	after := e.stars(p)
+	if n, _ := e.d.Games.FinishStaleRounds(context.Background()); n != 0 || e.stars(p) != after {
 		t.Fatal("never twice")
 	}
 }
 
-func TestChestGuardAppliesToRounds(t *testing.T) {
+// Rounds paid in the old version (several picks, a prize pool) are opened in full at once, with the prizes they already carry.
+func TestChestOldRoundsAreFinishedAtOnce(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
-	e.setSetting(settings.KeyChestPool, []map[string]any{{"type": "gift", "gift": "big", "weight": 100}, {"type": "stars", "value": 1, "weight": 1}})
-	e.setSetting(settings.KeyGuardRatio, 2.0)
+	p := e.login(525, "en", "")
+	if _, err := e.d.Pool.Exec(context.Background(), `INSERT INTO chest_rounds (player_id, status, cost, picks, prizes, opened, slot_mode, created_at)
+		VALUES ($1,'OPEN',10,3,'[{"type":"coins","value":100},{"type":"stars","value":5},{"type":"coins","value":100}]','{"2":0}',FALSE,$2)`, p.ID, e.now); err != nil {
+		t.Fatal(err)
+	}
+	// the first prize was opened already and paid then; the worker opens the other two (the expiry setting is 0 = never)
+	if n, err := e.d.Games.FinishStaleRounds(context.Background()); err != nil || n != 1 {
+		t.Fatalf("old round: %d %v", n, err)
+	}
+	if e.coins(p) != 100 || e.stars(p) != 5 {
+		t.Fatalf("the two unopened prizes: coins %d stars %d", e.coins(p), e.stars(p))
+	}
+	if n, _ := e.d.Games.FinishStaleRounds(context.Background()); n != 0 {
+		t.Fatal("never twice")
+	}
+}
+
+func TestChestGuardTakesThePrizeOutOfTheChests(t *testing.T) {
+	e := newEnv(t)
+	e.gamesConfig()
+	e.setSetting(settings.KeyGuardRatio, 0.5)
+	e.setSetting(settings.KeyGuardMinVolume, 0)
 	p := e.login(523, "en", "")
 	e.give(p, ledger.Star, 1000)
 	e.do("POST", "/api/chest/round", p.Token, nil)
-	var stored string
-	_ = e.d.Pool.QueryRow(context.Background(), `SELECT prizes::text FROM chest_rounds`).Scan(&stored)
-	if strings.Contains(stored, `"gift":"big"`) {
-		t.Fatalf("100,000-star gifts must be stepped down on a 10-star round: %s", stored)
+	slot, stored := e.prizeSlotOf(t)
+	if slot >= 0 {
+		t.Fatalf("27 stars on a 10-star round is far above the limit: %s", stored)
+	}
+	if e.countRows("guard_events") != 1 {
+		t.Fatal("the intervention is logged")
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"brunoplay/internal/admin"
 	"brunoplay/internal/ledger"
+	"brunoplay/internal/settings"
 )
 
 func (e *env) tournament(content, metric string, fee int, startIn, length time.Duration, prizes []map[string]any) int {
@@ -205,6 +206,7 @@ func TestTournamentLeaderboardRankingAndTies(t *testing.T) {
 func TestTournamentReviewDisqualifyAndConfirmedPayout(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
+	e.setSetting(settings.KeySpinWinChance, 0) // the spins only spend: the balances below do not depend on luck
 	fake := e.botEnv()
 	content := e.adminLogin("content@example.com", admin.RoleContent)
 	fin := e.adminLogin("fin@example.com", admin.RoleFinance)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -15,58 +16,18 @@ import (
 	"brunoplay/internal/settings"
 )
 
-type chestEntry struct {
-	Type   string  `json:"type"`
-	Value  int64   `json:"value"`
-	Weight float64 `json:"weight"`
-	Gift   string  `json:"gift"`
-}
+// The chest game: a round costs chest.round_cost_stars and shows 3 chests. One of them holds the prize (the price times
+// chest.prize_multiplier, in stars) and the other two are empty. The server hides the prize at payment, the player opens one chest:
+// the chance is 1 in 3, so a multiplier of 3 pays back 100% and 2.7 pays back 90%.
+//
+// Rounds paid before this version (slot_mode = false) had several picks and a prize pool; the worker opens them in full with
+// the prizes they already carry, so nobody loses what they paid for.
 
-func (s *Service) chestPool(ctx context.Context) ([]Prize, error) {
-	list, err := settings.Get[[]chestEntry](ctx, s.settings, settings.KeyChestPool)
-	if err != nil {
-		return nil, err
-	}
-	_, gifts, err := s.Gifts(ctx)
-	var out []Prize
-	for _, e := range list {
-		p := Prize{Type: e.Type, Value: e.Value, Weight: e.Weight, Gift: e.Gift}
-		switch e.Type {
-		case TypeGift:
-			if err != nil {
-				return nil, err
-			}
-			g, ok := gifts[e.Gift]
-			if !ok {
-				continue
-			}
-			p.Value = g.StarValue
-		case TypeCoins, TypeStars:
-			if e.Value <= 0 {
-				continue
-			}
-		case TypeEmpty:
-			p.Value, p.Gift = 0, ""
-		default:
-			continue
-		}
-		out = append(out, p)
-	}
-	// the empty chest: an "empty" entry of the pool, or else the weight in chest.empty_weight (0 = no empty chests)
-	hasEmpty := false
-	for _, e := range list {
-		hasEmpty = hasEmpty || e.Type == TypeEmpty
-	}
-	if !hasEmpty {
-		if w, werr := s.settings.Float(ctx, settings.KeyChestEmptyWeight); werr == nil && w > 0 {
-			out = append(out, Prize{Type: TypeEmpty, Weight: w})
-		}
-	}
-	if len(out) == 0 {
-		return nil, apperr.ConfigMissing.With("key", settings.KeyChestPool)
-	}
-	return out, nil
-}
+// ChestSlots is how many chests a round shows (the API accepts slots 0..ChestSlots-1).
+const ChestSlots = 3
+
+// legacyChestSlots is how many chests the old version showed; a round that is still open from then accepts these slots.
+const legacyChestSlots = 12
 
 type ChestPrize struct {
 	Type   string `json:"type"`
@@ -90,20 +51,22 @@ type ChestRound struct {
 }
 
 type ChestState struct {
-	Round     *ChestRound `json:"round"`
-	CostStars int64       `json:"roundCostStars"`
-	Picks     int         `json:"picksPerRound"`
+	Round      *ChestRound `json:"round"`
+	CostStars  int64       `json:"roundCostStars"`
+	Picks      int         `json:"picksPerRound"`
+	Multiplier float64     `json:"multiplier"`
+	WinStars   int64       `json:"winStars"`
 }
 
 type roundRow struct {
-	ID      int64
-	Player  int64
-	Status  string
-	Picks   int
-	Prizes  []Prize
-	Opened  map[string]int // slot -> prize index
-	Created time.Time
-	Gifts   map[string]int64 // slot -> gift id (kept inside opened meta)
+	ID       int64
+	Player   int64
+	Status   string
+	Picks    int
+	Prizes   []Prize
+	Opened   map[string]int // slot -> prize index
+	Created  time.Time
+	SlotMode bool // the prize of slot n is Prizes[n]; otherwise the k-th chest opened gets Prizes[k]
 }
 
 func (s *Service) loadRound(ctx context.Context, q db.Querier, playerID int64, forUpdate bool) (*roundRow, error) {
@@ -113,8 +76,8 @@ func (s *Service) loadRound(ctx context.Context, q db.Querier, playerID int64, f
 	}
 	var r roundRow
 	var prizes, opened []byte
-	err := q.QueryRow(ctx, `SELECT id, player_id, status, picks, prizes, opened, created_at FROM chest_rounds WHERE player_id=$1 AND status='OPEN'`+lock, playerID).
-		Scan(&r.ID, &r.Player, &r.Status, &r.Picks, &prizes, &opened, &r.Created)
+	err := q.QueryRow(ctx, `SELECT id, player_id, status, picks, prizes, opened, created_at, slot_mode FROM chest_rounds WHERE player_id=$1 AND status='OPEN'`+lock, playerID).
+		Scan(&r.ID, &r.Player, &r.Status, &r.Picks, &prizes, &opened, &r.Created, &r.SlotMode)
 	if db.IsNoRows(err) {
 		return nil, nil
 	}
@@ -133,24 +96,10 @@ func (s *Service) loadRound(ctx context.Context, q db.Querier, playerID int64, f
 
 func (s *Service) chestPrize(p Prize, lang apperr.Lang, names map[string]Gift, giftID int64) ChestPrize {
 	cp := ChestPrize{Type: p.Type, Value: p.Value, Gift: p.Gift, GiftID: giftID}
-	switch p.Type {
-	case TypeEmpty:
-		cp.Label = "Empty"
-		if lang == apperr.RU {
-			cp.Label = "Пусто"
-		}
-	case TypeGift:
+	if p.Type == TypeGift {
 		cp.Label = names[p.Gift].Name(lang)
-	case TypeCoins:
-		cp.Label = "Coins"
-		if lang == apperr.RU {
-			cp.Label = "Монеты"
-		}
-	default:
-		cp.Label = "Stars"
-		if lang == apperr.RU {
-			cp.Label = "Звёзды"
-		}
+	} else {
+		cp.Label = prizeLabel(p, lang)
 	}
 	return cp
 }
@@ -168,17 +117,24 @@ func (s *Service) roundView(ctx context.Context, r *roundRow, lang apperr.Lang) 
 	return v
 }
 
+// chestRules reads the round price and what the prize chest pays.
+func (s *Service) chestRules(ctx context.Context) (cost int64, mult float64, win int64, err error) {
+	if cost, err = s.settings.Int(ctx, settings.KeyChestCost); err != nil {
+		return 0, 0, 0, err
+	}
+	if mult, err = s.settings.Float(ctx, settings.KeyChestPrizeMult); err != nil {
+		return 0, 0, 0, err
+	}
+	return cost, mult, winAmount(cost, mult), nil
+}
+
 // Chest returns the open round (if any), so a player who left can continue.
 func (s *Service) Chest(ctx context.Context, playerID int64, lang apperr.Lang) (*ChestState, error) {
-	cost, err := s.settings.Int(ctx, settings.KeyChestCost)
+	cost, mult, win, err := s.chestRules(ctx)
 	if err != nil {
 		return nil, err
 	}
-	picks, err := s.settings.Int(ctx, settings.KeyChestPicks)
-	if err != nil {
-		return nil, err
-	}
-	st := &ChestState{CostStars: cost, Picks: int(picks)}
+	st := &ChestState{CostStars: cost, Picks: 1, Multiplier: mult, WinStars: win}
 	r, err := s.loadRound(ctx, s.pool, playerID, false)
 	if err != nil {
 		return nil, err
@@ -189,18 +145,9 @@ func (s *Service) Chest(ctx context.Context, playerID int64, lang apperr.Lang) (
 	return st, nil
 }
 
-// StartChestRound pays once and draws every prize of the round now, in a hidden order.
+// StartChestRound pays once and hides the prize in one of the 3 chests now.
 func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang apperr.Lang) (*ChestState, error) {
-	cost, err := s.settings.Int(ctx, settings.KeyChestCost)
-	if err != nil {
-		return nil, err
-	}
-	picksI, err := s.settings.Int(ctx, settings.KeyChestPicks)
-	if err != nil {
-		return nil, err
-	}
-	picks := int(picksI)
-	pool, err := s.chestPool(ctx)
+	cost, _, win, err := s.chestRules(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -225,53 +172,31 @@ func (s *Service) StartChestRound(ctx context.Context, playerID int64, lang appe
 				return err
 			}
 		}
-		prizes := make([]Prize, 0, picks)
-		smart, err := s.smartBegin(ctx, tx, playerID, GameChest, "round")
-		if err != nil {
-			return err
+		// the prize goes into one chest; the payout guard may take it out again (then all three are empty)
+		prizeSlot := int(randFloat() * ChestSlots)
+		if prizeSlot >= ChestSlots {
+			prizeSlot = ChestSlots - 1
 		}
-		welcome := false
-		if smart != nil {
-			welcome = smart.startPlay() // one round is one play
+		prizes := make([]Prize, ChestSlots)
+		for i := range prizes {
+			prizes[i] = Prize{Type: TypeEmpty}
 		}
-		pickPrice := float64(cost) / float64(picks)
-		for i := 0; i < picks; i++ {
-			var drawn, p Prize
-			if smart != nil {
-				// smart prizes: chosen from the player's history, the weights are not used; a welcome round skips the guard
-				drawn = smart.draw(pool, pickPrice, welcome)
-				p = drawn
-				if !welcome {
-					if p, _, err = s.guard(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i); err != nil {
-						return err
-					}
-				} else if smart.cfg.GatePct > 0 {
-					// a welcome prize never pushes the game's payout above the overall limit
-					if p, _, err = s.guardAt(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i, smart.cfg.GatePct/100); err != nil {
-						return err
-					}
-				}
-				smart.settle(pickPrice, p)
-			} else {
-				if drawn, err = pick(pool); err != nil {
-					return err
-				}
-				if p, _, err = s.guard(ctx, tx, playerID, GameChest, "round", drawn, pool, picks-1-i); err != nil {
-					return err
-				}
-			}
-			if err := s.recordPaid(ctx, tx, GameChest, "round", s.starValue(p, s.coinStars(ctx))); err != nil {
+		if win > 0 {
+			ok, err := s.winGuard(ctx, tx, playerID, GameChest, "round", win)
+			if err != nil {
 				return err
 			}
-			p.Weight = 0
-			prizes = append(prizes, p)
-		}
-		if err := s.smartSave(ctx, tx, smart); err != nil {
-			return err
+			if ok {
+				prizes[prizeSlot] = Prize{Type: TypeStars, Value: win}
+				if err := s.recordPaid(ctx, tx, GameChest, "round", win); err != nil {
+					return err
+				}
+			}
 		}
 		b, _ := json.Marshal(prizes)
 		var roundID int64
-		err = tx.QueryRow(ctx, `INSERT INTO chest_rounds (player_id, status, cost, picks, prizes, created_at) VALUES ($1,'OPEN',$2,$3,$4,$5) RETURNING id`, playerID, cost, picks, b, s.now()).Scan(&roundID)
+		err := tx.QueryRow(ctx, `INSERT INTO chest_rounds (player_id, status, cost, picks, prizes, slot_mode, created_at) VALUES ($1,'OPEN',$2,1,$3,TRUE,$4) RETURNING id`,
+			playerID, cost, b, s.now()).Scan(&roundID)
 		if db.IsUnique(err, "chest_one_open") {
 			return apperr.ChestRoundOpen
 		}
@@ -305,6 +230,9 @@ func (s *Service) award(ctx context.Context, tx pgx.Tx, playerID, roundID int64,
 			RefType: "chest", RefID: ledger.RefID(roundID), IdemKey: fmt.Sprintf("chest:%d:%d", roundID, idx)}); err != nil && err != ledger.ErrDuplicate {
 			return 0, err
 		}
+		if err := s.feed(ctx, tx, playerID, GameChest, p, spentShare); err != nil {
+			return 0, err
+		}
 	case TypeGift:
 		id, err := s.grant(ctx, tx, playerID, p, "chest", ledger.RefID(roundID))
 		if err != nil {
@@ -327,10 +255,9 @@ type PickResult struct {
 	Results       []ChestPrize `json:"results,omitempty"`
 	TotalCoinsWon int64        `json:"totalCoinsWon,omitempty"`
 	TotalStarsWon int64        `json:"totalStarsWon,omitempty"`
+	// when the round ends: what was in each chest (by slot), so the app can show where the prize was
+	Reveal []ChestPrize `json:"reveal,omitempty"`
 }
-
-// ChestSlots is how many chests the app shows (the API accepts slots 0..ChestSlots-1).
-const ChestSlots = 12
 
 // PickChest opens one chest (a slot). Opening the same slot again returns the same prize and pays nothing more.
 func (s *Service) PickChest(ctx context.Context, playerID int64, slot int, lang apperr.Lang) (*PickResult, error) {
@@ -347,8 +274,11 @@ func (s *Service) PickChest(ctx context.Context, playerID int64, slot int, lang 
 		if r == nil {
 			return apperr.ChestNoRound
 		}
-		// the app shows ChestSlots chests and the player opens any Picks of them; the prizes were drawn at payment
-		if slot < 0 || slot >= ChestSlots {
+		limit := ChestSlots
+		if !r.SlotMode {
+			limit = legacyChestSlots
+		}
+		if slot < 0 || slot >= limit {
 			return apperr.BadRequest
 		}
 		key := strconv.Itoa(slot)
@@ -356,12 +286,19 @@ func (s *Service) PickChest(ctx context.Context, playerID int64, slot int, lang 
 			res = &PickResult{Prize: s.chestPrize(r.Prizes[idx], lang, names, 0), Slot: slot, Remaining: r.Picks - len(r.Opened)}
 			return nil
 		}
+		// the new rounds: the chest decides the prize; the old ones: the k-th chest opened gets the k-th prize
 		idx := len(r.Opened)
+		if r.SlotMode {
+			idx = slot
+		}
+		if idx >= len(r.Prizes) {
+			return apperr.BadRequest
+		}
 		p := r.Prizes[idx]
+		var cost int64
+		_ = tx.QueryRow(ctx, `SELECT cost FROM chest_rounds WHERE id=$1`, r.ID).Scan(&cost)
 		share := int64(0)
 		if r.Picks > 0 {
-			var cost int64
-			_ = tx.QueryRow(ctx, `SELECT cost FROM chest_rounds WHERE id=$1`, r.ID).Scan(&cost)
 			share = cost / int64(r.Picks)
 		}
 		gid, err := s.award(ctx, tx, playerID, r.ID, idx, p, share)
@@ -382,6 +319,16 @@ func (s *Service) PickChest(ctx context.Context, playerID int64, slot int, lang 
 		}
 		res = &PickResult{Prize: s.chestPrize(p, lang, names, gid), Slot: slot, Remaining: r.Picks - len(r.Opened), Finished: finished}
 		if finished {
+			if r.SlotMode {
+				res.Results = []ChestPrize{s.chestPrize(p, lang, names, gid)}
+				if p.Type == TypeStars {
+					res.TotalStarsWon = p.Value
+				}
+				for _, pr := range r.Prizes {
+					res.Reveal = append(res.Reveal, s.chestPrize(pr, lang, names, 0))
+				}
+				return nil
+			}
 			for _, pr := range r.Prizes {
 				res.Results = append(res.Results, s.chestPrize(pr, lang, names, 0))
 				switch pr.Type {
@@ -397,14 +344,19 @@ func (s *Service) PickChest(ctx context.Context, playerID int64, slot int, lang 
 	return res, err
 }
 
-// FinishStaleRounds opens the remaining chests of rounds left open longer than chest.round_expiry_hours (0 = never), so a player
-// never loses what they paid for. Returns how many rounds were finished.
+// FinishStaleRounds opens the rest of rounds that nobody will finish, so a player never loses what they paid for: rounds left open
+// longer than chest.round_expiry_hours (0 = never), and every round that was paid in the old version (several picks, a prize
+// pool). A round of the new game that expires opens one chest chosen at random. Returns how many rounds were finished.
 func (s *Service) FinishStaleRounds(ctx context.Context) (int, error) {
 	hours, err := s.settings.Int(ctx, settings.KeyChestExpiryH)
-	if err != nil || hours <= 0 {
+	if err != nil {
 		return 0, nil
 	}
-	rows, err := s.pool.Query(ctx, `SELECT player_id FROM chest_rounds WHERE status='OPEN' AND created_at < $1 LIMIT 100`, s.now().Add(-time.Duration(hours)*time.Hour))
+	expired := time.Time{} // nothing is expired when the limit is 0
+	if hours > 0 {
+		expired = s.now().Add(-time.Duration(hours) * time.Hour)
+	}
+	rows, err := s.pool.Query(ctx, `SELECT player_id FROM chest_rounds WHERE status='OPEN' AND (NOT slot_mode OR created_at < $1) LIMIT 100`, expired)
 	if err != nil {
 		return 0, err
 	}
@@ -427,11 +379,22 @@ func (s *Service) FinishStaleRounds(ctx context.Context) (int, error) {
 			}
 			var cost int64
 			_ = tx.QueryRow(ctx, `SELECT cost FROM chest_rounds WHERE id=$1`, r.ID).Scan(&cost)
-			for idx := len(r.Opened); idx < r.Picks; idx++ {
-				if _, err := s.award(ctx, tx, pid, r.ID, idx, r.Prizes[idx], cost/int64(r.Picks)); err != nil {
+			if r.SlotMode {
+				slot := int(math.Floor(randFloat() * ChestSlots))
+				if slot >= ChestSlots {
+					slot = ChestSlots - 1
+				}
+				if _, err := s.award(ctx, tx, pid, r.ID, slot, r.Prizes[slot], cost); err != nil {
 					return err
 				}
-				r.Opened["auto"+strconv.Itoa(idx)] = idx
+				r.Opened["auto"+strconv.Itoa(slot)] = slot
+			} else {
+				for idx := len(r.Opened); idx < r.Picks; idx++ {
+					if _, err := s.award(ctx, tx, pid, r.ID, idx, r.Prizes[idx], cost/int64(r.Picks)); err != nil {
+						return err
+					}
+					r.Opened["auto"+strconv.Itoa(idx)] = idx
+				}
 			}
 			ob, _ := json.Marshal(r.Opened)
 			_, err = tx.Exec(ctx, `UPDATE chest_rounds SET opened=$2, status='DONE', finished_at=$3 WHERE id=$1`, r.ID, ob, s.now())

@@ -252,7 +252,7 @@ func TestAdminPermissionsAndSettings(t *testing.T) {
 	if r := e.do("PUT", "/api/admin/settings/"+settings.KeyWdMin, finance, map[string]any{"value": 10000}); r.Status != 200 {
 		t.Fatalf("finance sets withdrawal.min: %d %s", r.Status, r.Body)
 	}
-	if r := e.do("PUT", "/api/admin/settings/"+settings.KeyChestPicks, finance, map[string]any{"value": 4}); r.Status != 403 {
+	if r := e.do("PUT", "/api/admin/settings/"+settings.KeyChestPrizeMult, finance, map[string]any{"value": 4}); r.Status != 403 {
 		t.Fatalf("finance must not set games.*: %d", r.Status)
 	}
 	if r := e.do("PUT", "/api/admin/settings/"+settings.KeyWdMin, support, map[string]any{"value": 1}); r.Status != 403 {

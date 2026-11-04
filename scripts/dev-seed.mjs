@@ -44,7 +44,6 @@ const gifts = [
   ['cap', 'Cap', 'Кепка', 400000], ['frog', 'Frog', 'Лягушка', 1000000],
 ].map(([key, en, ru, v]) => ({ key, name_en: en, name_ru: ru, star_value: v }))
 
-const odds = (w) => Object.fromEntries(['heart', 'apple', 'ring', 'watch', 'cat', 'panda', 'cap', 'frog'].map((k, i) => [k, w[i]]))
 
 const values = {
   'ads.required': false,
@@ -61,17 +60,10 @@ const values = {
   'cards.capacity.levels': levels(5, 5, 500, 500),
   'referral.level_rewards': { 2: 200, 3: 300, 4: 400, 5: 500 },
   'chest.round_cost_stars': 10,
-  'chest.pool': [
-    { type: 'coins', value: 500, weight: 30 }, { type: 'coins', value: 1500, weight: 25 }, { type: 'coins', value: 5000, weight: 15 },
-    { type: 'stars', value: 5, weight: 20 }, { type: 'gift', gift: 'apple', weight: 10 },
-  ],
   gifts,
   'ride.run_cost_stars': 1,
   'ride.max_coins_per_day': 2000,
   'spin.tiers': [500, 1000, 2500, 5000, 10000].map((p, i) => ({ tier: `TIER_${i + 1}`, price_stars: p, name_en: `Tier ${i + 1}`, name_ru: `Уровень ${i + 1}` })),
-  'spin.odds': Object.fromEntries(
-    [1, 2, 3, 4, 5].map((n) => [`TIER_${n}`, odds([n, 12, 14, 14, 13, 10, n * 2, n / 2])]),
-  ),
   'topup.packs': [{ stars: 200 }, { stars: 500 }, { stars: 1000 }, { stars: 2500 }, { stars: 5000 }],
   'withdrawal.coins_per_ton': 100000,
   'withdrawal.fee_ton': 0.005,

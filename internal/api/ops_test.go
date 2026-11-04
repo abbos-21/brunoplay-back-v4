@@ -33,6 +33,7 @@ func sumOf(points []any, dim string) float64 {
 func TestDashboardAggregatesAndRetention(t *testing.T) {
 	e := newEnv(t)
 	e.gamesConfig()
+	e.setSetting(settings.KeySpinWinChance, 0) // the spins only spend: the balances below do not depend on luck
 	e.moneyConfig()
 	e.wdConfig()
 	fin := e.adminLogin("fin@example.com", admin.RoleFinance)

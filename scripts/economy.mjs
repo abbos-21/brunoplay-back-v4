@@ -35,7 +35,17 @@ const OVERRIDES = {
   'guard.coin_value_stars': 0.00006,
   // the server does not accept 0 coins here (the minimum is 1); bonus ads per day is 0, so no bonus ad can pay it anyway
   'ads.bonus.coins': 1,
+  // the two-outcome games (spin: win or nothing, chest: one prize chest of three). The player gets back chance x multiplier:
+  // spin 45% x 2 = 90%, chest 2.7 / 3 = 90%
+  'spin.win_chance_percent': 45,
+  'spin.win_multiplier': 2,
+  'chest.prize_multiplier': 2.7,
+  'guard.min_volume_multiple': 10,
+  // the guard is a safety net above the games' own 90%: at 0.75 it would cut the wins of a normal day
+  'guard.max_payout_ratio': 0.95,
 }
+// settings of the old games that no longer exist (the answers file still carries them)
+const REMOVED = ['chest.picks_per_round', 'spin.odds', 'chest.pool', 'spin.empty_weight', 'chest.empty_weight']
 
 const round = (x, d = 0) => Math.round(x * 10 ** d) / 10 ** d
 const rows = (name) => answers.tables[name].rows
@@ -52,6 +62,7 @@ export function buildSettings({ wallet, blockIds, links } = {}) {
   delete s['notifications.quiet_hours.from']
   delete s['notifications.quiet_hours.to']
   Object.assign(s, OVERRIDES)
+  for (const k of REMOVED) delete s[k]
   // the Monetag card is off; 0 is below the server's minimum of 1, so the server's own default stays
   if (!(s['ads.monetag.task_coins'] >= 1)) delete s['ads.monetag.task_coins']
 
@@ -87,15 +98,6 @@ export function buildSettings({ wallet, blockIds, links } = {}) {
   // ---- games
   s.gifts = rows('gifts').map((r) => ({ key: r.key, name_en: r.name_en, name_ru: r.name_ru, star_value: r.star_value }))
   s['spin.tiers'] = rows('spin_tiers').map((r) => ({ tier: r.tier, price_stars: r.price_stars, name_en: r.name_en, name_ru: r.name_ru }))
-  const odds = {}
-  for (const t of s['spin.tiers']) odds[t.tier] = {}
-  for (const r of rows('spin_odds')) {
-    for (const [col, tier] of [['t1', 'TIER_1'], ['t2', 'TIER_2'], ['t3', 'TIER_3'], ['t4', 'TIER_4'], ['t5', 'TIER_5']]) {
-      if (num(r[col]) > 0) odds[tier][r.prize] = (odds[tier][r.prize] ?? 0) + num(r[col])
-    }
-  }
-  s['spin.odds'] = odds
-  s['chest.pool'] = rows('chest_pool').map((r) => (r.type === 'gift' ? { type: 'gift', gift: r.gift, weight: r.weight } : { type: r.type, value: r.amount, weight: r.weight }))
 
   // values only the owner knows: they are added when given, never invented
   if (wallet) s['topup.ton.wallet_address'] = wallet
@@ -127,35 +129,18 @@ export function starterTasks() {
   }))
 }
 
-/** What one prize of the odds table is worth in stars: a gift key, or "coins:500" / "stars:25" (a coin counts for guard.coin_value_stars). */
-export function prizeWorth(settings, key) {
-  const [kind, amount] = key.split(':')
-  if (amount !== undefined) {
-    const n = Number(amount)
-    if (kind === 'stars') return n
-    if (kind === 'coins') return n * (settings['guard.coin_value_stars'] ?? 0)
-    return 0
-  }
-  return settings.gifts.find((g) => g.key === key)?.star_value ?? 0
-}
-
-/** The expected return of one spin / chest pick (in stars), computed from the settings that will be written. */
+/** What the spin gives back: it wins with the chance spin.win_chance_percent and then pays the price times spin.win_multiplier. */
 export function spinRtp(settings, tier) {
   const price = settings['spin.tiers'].find((t) => t.tier === tier).price_stars
-  const odds = settings['spin.odds'][tier]
-  const sum = Object.values(odds).reduce((a, b) => a + b, 0)
-  const ev = Object.entries(odds).reduce((a, [k, w]) => a + (w / sum) * prizeWorth(settings, k), 0)
-  return { price, ev, rtp: ev / price, jackpotChance: ((odds.frog ?? 0) + (odds.heart ?? 0)) / sum }
+  const rtp = (settings['spin.win_chance_percent'] / 100) * settings['spin.win_multiplier']
+  return { price, ev: price * rtp, rtp, winChance: settings['spin.win_chance_percent'] / 100 }
 }
 
+/** What the chest gives back: one of 3 chests holds the prize (the price times chest.prize_multiplier), the player opens one. */
 export function chestRtp(settings) {
-  const value = Object.fromEntries(settings.gifts.map((g) => [g.key, g.star_value]))
-  const coinStars = settings['guard.coin_value_stars']
-  const pool = settings['chest.pool']
-  const sum = pool.reduce((a, p) => a + p.weight, 0)
-  const perPick = pool.reduce((a, p) => a + (p.weight / sum) * (p.type === 'coins' ? p.value * coinStars : p.type === 'stars' ? p.value : value[p.gift]), 0)
-  const round = perPick * settings['chest.picks_per_round']
-  return { perPick, round, rtp: round / settings['chest.round_cost_stars'] }
+  const rtp = settings['chest.prize_multiplier'] / 3
+  const cost = settings['chest.round_cost_stars']
+  return { round: cost * rtp, rtp }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -282,9 +267,9 @@ function runPlayer(S, a, buyer, sc) {
     const c = chestRtp(S)
     const rtp = 0.6 * r.rtp + 0.3 * c.rtp + 0.1 * 0
     const q = sc.claim
-    const total = play / (1 - rtp * (1 - q) * 0.8) // sold winnings are played again
+    const total = play / (1 - Math.min(rtp, 0.95)) // the stars won stay in the game and are played again
     spinSpent = total
-    giftCost = total * rtp * q * A.giftCostPerStar
+    giftCost = 0 // the games pay stars, not gifts
   }
   const payoutUsd = withdrawn * A.coinUsd * sc.ton
   const netPerStar = (1 - A.tonShare) * A.netPerTelegramStar + A.tonShare * (A.tonPricePerStar / (1 + A.tonBonusPercent / 100)) * sc.ton
