@@ -73,3 +73,14 @@ so keep `TRUSTED_PROXY=true` only behind the bundled Caddy (it sets the real cli
 
 `docs/SETTINGS.md` (every owner value) · `docs/API.md` (every route) · `docs/FRONTEND-INTEGRATION.md` (what the app must change) ·
 `docs/SECURITY.md` (checklist and known limits) · `docs/TOR.md` (the specification).
+
+## Updating, resetting and restoring (scripts)
+
+| What | Command | Notes |
+|---|---|---|
+| Put the latest code live (api + game + admin) | `deploy/update-all.sh` (or `back`, `app`, `admin`) | pulls the three repositories, then deploys the API (backup, migration, health check, rollback) and builds the web apps |
+| Remove all players, keep settings and content | `deploy/reset-game.sh` | full backup first, refuses while a withdrawal, gift claim or top-up is open; what goes and what stays is at the top of `scripts/reset-game.sql` |
+| Delete EVERYTHING and start empty | `deploy/wipe-database.sh` | full backup first; creates the first admin; afterwards restore the settings with the seed below |
+| Save / restore settings and tasks | `scripts/seed-snapshot.mjs` | `--export` writes `scripts/seed-snapshot.json` from a live server; without `--export` it puts it back (dry run first, `--apply` to write). The snapshot file is in `.gitignore` on purpose (the repositories are public): keep your own copy. Not in the snapshot: admin accounts, combo images and patterns, notification templates, gift pictures |
+
+The backups made before a reset or a wipe are kept for good in `~/brunoplay-backups/before-reset/` and `before-wipe/`.
