@@ -177,8 +177,6 @@ func (d *Deps) Routes() chi.Router {
 		r.Post("/webhooks/adsgram", httpx.Wrap(d.adsgramWebhook))
 		r.Get("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
 		r.Post("/webhooks/adsgram-task", httpx.Wrap(d.adsgramTaskWebhook))
-		r.Get("/webhooks/tads", httpx.Wrap(d.tadsWebhook))
-		r.Post("/webhooks/tads", httpx.Wrap(d.tadsWebhook))
 		r.Get("/webhooks/monetag", httpx.Wrap(d.monetagWebhook))
 		r.Post("/webhooks/telegram",httpx.Wrap(d.telegramWebhook))
 		r.Get("/gift-images/{key}", httpx.Wrap(d.giftImage))

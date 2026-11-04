@@ -47,19 +47,10 @@ type SponsoredStatus struct {
 	NextInSeconds   int64  `json:"nextInSeconds"`
 }
 
-// BannerConfig is a block of ad cards inside a screen (TADS TGB). Nothing is paid for it.
-type BannerConfig struct {
-	Enabled  bool   `json:"enabled"`
-	Provider string `json:"provider"`
-	WidgetID string `json:"widgetId"`
-	Debug    bool   `json:"debug"`
-}
-
 // Config is the answer of GET /api/ads/config.
 type Config struct {
 	Interstitial InterstitialConfig `json:"interstitial"`
 	Task         SponsoredStatus    `json:"task"`
-	Banner       BannerConfig       `json:"banner"`
 	PopupTask    PopupStatus        `json:"popupTask"`
 }
 
@@ -86,10 +77,6 @@ func (s *Service) Config(ctx context.Context, playerID int64) (*Config, error) {
 		return nil, err
 	}
 	c.PopupTask = *pop
-
-	w := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTadsTGB, ""))
-	c.Banner = BannerConfig{Provider: "tads", WidgetID: w, Debug: s.settings.BoolOr(ctx, settings.KeyAdsTadsDebug, false)}
-	c.Banner.Enabled = widgetRe.MatchString(w) && s.ProviderOn(ctx, "tads", FormatBanner) && !s.PlayerAdsOff(ctx, s.pool, playerID)
 	return c, nil
 }
 

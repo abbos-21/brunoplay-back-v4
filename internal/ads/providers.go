@@ -22,7 +22,6 @@ const (
 	FormatRewarded     Format = "rewarded"     // the player watches it to get an action or a reward (proof required)
 	FormatInterstitial Format = "interstitial" // shown between games, nothing is paid
 	FormatTask         Format = "task"         // the sponsored task card
-	FormatBanner       Format = "banner"       // a block of ad cards inside a screen (nothing is paid)
 )
 
 // Field is one setting the admin edits on the Ads page for a provider.
@@ -40,7 +39,6 @@ type Field struct {
 type ProviderRef struct {
 	ID       string `json:"id"`
 	BlockID  string `json:"blockId,omitempty"`  // Adsgram
-	WidgetID string `json:"widgetId,omitempty"` // TADS
 	ZoneID   string `json:"zoneId,omitempty"`   // Monetag (the app also uses the proof id as the ymid of the ad)
 	Debug    bool   `json:"debug,omitempty"`
 	// WaitSeconds: the provider reports an ad when it STARTS, not when it ends. The server accepts the proof this many seconds after
@@ -88,26 +86,6 @@ var providers = []providerDef{
 				{Label: "Rewarded blocks (Reward URL)", URL: u + "/api/webhooks/adsgram?userid=[userId]&blockid=[blockId]&secret=YOUR_SECRET", Note: "YOUR_SECRET is ADSGRAM_WEBHOOK_SECRET from the server's .env"},
 				{Label: "Task block (Reward URL)", URL: u + "/api/webhooks/adsgram-task?userid=[userId]&secret=YOUR_SECRET", Note: "same secret"},
 			}
-		},
-	},
-	{
-		ID: "tads", Name: "TADS", Formats: []Format{FormatRewarded, FormatBanner},
-		Fields: []Field{
-			{Key: settings.KeyAdsTadsWidget, Label: "Widget id", Help: "The number of the Fullscreen banner (rewarded) widget in the TADS dashboard, for example 12941.", Kind: "string"},
-			{Key: settings.KeyAdsTadsTGB, Label: "TGB widget id (test card)", Kind: "string",
-				Help: "A TGB (text-graphic block) widget of TADS. When filled in, a card with its ads appears on the Tasks screen (it pays nothing). Empty = no card."},
-			{Key: settings.KeyAdsTadsWait, Label: "Wait for the ad to end (seconds)", Kind: "number", Min: 0, Max: 120,
-				Help: "TADS reports an ad when it STARTS, not when it ends. The game stays on hold this many seconds after the ad starts, and the server refuses the action before that. Watch one TADS ad, time it, and put its length (or a little more) here. 0 = no wait."},
-			{Key: settings.KeyAdsTadsDebug, Label: "Debug mode", Help: "Test ads. Keep it OFF in production.", Kind: "bool"},
-		},
-		WaitKey: settings.KeyAdsTadsWait,
-		Ref: func(ctx context.Context, s *Service, placement string) (ProviderRef, bool) {
-			w := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsTadsWidget, ""))
-			wait, _ := s.settings.Int(ctx, settings.KeyAdsTadsWait)
-			return ProviderRef{ID: "tads", WidgetID: w, Debug: s.settings.BoolOr(ctx, settings.KeyAdsTadsDebug, false), WaitSeconds: int(wait)}, widgetRe.MatchString(w)
-		},
-		Webhooks: func(u string) []Webhook {
-			return []Webhook{{Label: "Widget webhook (method POST)", URL: u + "/api/webhooks/tads?secret=YOUR_SECRET", Note: "YOUR_SECRET is ADSGRAM_WEBHOOK_SECRET from the server's .env (the same secret is used)"}}
 		},
 	},
 	{
@@ -287,8 +265,6 @@ func providerHint(id string) string {
 	switch id {
 	case "adsgram":
 		return "enter the Adsgram block ids in Settings → ads.block_ids."
-	case "tads":
-		return "enter the widget id below."
 	case "monetag":
 		return "enter the main zone id below."
 	}
@@ -328,8 +304,8 @@ func (s *Service) SaveProviders(ctx context.Context, list []Entry, fields map[st
 			if !isStr {
 				return apperr.AdminRefused.With("why", f.Label+" must be text")
 			}
-			if (k == settings.KeyAdsTadsWidget || k == settings.KeyAdsTadsTGB || k == settings.KeyAdsMonetagZone) && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
-				return apperr.AdminRefused.With("why", f.Label+" is a number (for example 12941)")
+			if k == settings.KeyAdsMonetagZone && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
+				return apperr.AdminRefused.With("why", f.Label+" is a number (for example 12144526)")
 			}
 			fields[k] = strings.TrimSpace(str)
 		}

@@ -19,7 +19,7 @@ func TestMonetagPopupTask(t *testing.T) {
 	pr := func(id string, on bool) map[string]any { return map[string]any{"id": id, "enabled": on} }
 	save := func(monetag bool, fields map[string]any) {
 		t.Helper()
-		body := map[string]any{"providers": []map[string]any{pr("adsgram", true), pr("tads", false), pr("monetag", monetag)}, "fields": fields}
+		body := map[string]any{"providers": []map[string]any{pr("adsgram", true), pr("monetag", monetag)}, "fields": fields}
 		if r := e.do("PUT", "/api/admin/ads/providers", boss, body); r.Status != 200 {
 			t.Fatalf("save: %d %s", r.Status, r.Body)
 		}

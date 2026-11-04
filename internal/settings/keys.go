@@ -41,10 +41,6 @@ const (
 	KeyAdsTaskCoins           = "ads.task.reward_coins"
 	KeyAdsTaskInterval        = "ads.task.interval_minutes"
 	KeyAdsProviders           = "ads.providers"
-	KeyAdsTadsWidget          = "ads.tads.widget_id"
-	KeyAdsTadsDebug           = "ads.tads.debug"
-	KeyAdsTadsWait            = "ads.tads.wait_seconds"
-	KeyAdsTadsTGB             = "ads.tads.tgb_widget_id"
 	KeyAdsMonetagZone         = "ads.monetag.zone_id"
 	KeyAdsMonetagWait         = "ads.monetag.wait_seconds"
 	KeyAdsMonetagTask         = "ads.monetag.task_enabled"
@@ -267,16 +263,12 @@ func Registry() []Def {
 		i(KeyAdsTaskCoins, "ads", "Coins for one completed sponsored task", 2000, 1, big),
 		i(KeyAdsTaskInterval, "ads", "Sponsored task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),
 		arr(KeyAdsProviders, "ads", "Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page)",
-			[]map[string]any{{"id": "adsgram", "enabled": true}, {"id": "tads", "enabled": false}, {"id": "monetag", "enabled": false}}),
-		s(KeyAdsTadsWidget, "ads", "TADS widget id (a number from the TADS dashboard)", ""),
-		s(KeyAdsTadsTGB, "ads", "TADS TGB widget id for the test card on the Tasks screen (empty = no card)", ""),
-		b(KeyAdsTadsDebug, "ads", "TADS debug mode (test ads; keep OFF in production)", false),
+			[]map[string]any{{"id": "adsgram", "enabled": true}, {"id": "monetag", "enabled": false}}),
 		s(KeyAdsMonetagZone, "ads", "Monetag main zone id (a number from the Monetag dashboard)", ""),
 		i(KeyAdsMonetagWait, "ads", "Monetag: seconds after Monetag reports the ad before the action may go ahead (it reports when the ad starts, so set the ad's length)", 10, 0, 120),
 		b(KeyAdsMonetagTask, "ads", "Monetag popup task (Rewarded Popup: opens a partner offer) on the Tasks screen", false),
 		i(KeyAdsMonetagTaskCoins, "ads", "Coins for one completed Monetag popup task", 1000, 1, big),
 		i(KeyAdsMonetagTaskInterval, "ads", "Monetag popup task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),
-		i(KeyAdsTadsWait, "ads", "TADS: seconds after TADS reports the ad before the action may go ahead (TADS reports when the ad starts, so set the ad's length)", 15, 0, 120),
 
 		i(KeyCollectMinPct, "fishing", "Minimum tank fill (%) needed to collect", 10, 0, 100),
 		cards(KeyCardsMining, "fishing", "Mining-rate card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10", nil),

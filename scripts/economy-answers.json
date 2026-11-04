@@ -251,12 +251,6 @@
       "value": 480
     },
     {
-      "key": "ads.tads.wait_seconds",
-      "label": "TADS wait",
-      "unit": "seconds",
-      "value": 10
-    },
-    {
       "key": "ads.monetag.wait_seconds",
       "label": "Monetag wait",
       "unit": "seconds",
@@ -842,12 +836,6 @@
           "what": "Adsgram",
           "priority": 1,
           "on": "Yes"
-        },
-        {
-          "name": "tads",
-          "what": "TADS (no ads available at the moment)",
-          "priority": null,
-          "on": "No"
         },
         {
           "name": "monetag",
@@ -1702,7 +1690,6 @@
   },
   "notes": null,
   "undecided": [
-    "networks / tads TADS (no ads available at the moment) / priority",
     "networks / monetag Monetag / priority"
   ]
 }

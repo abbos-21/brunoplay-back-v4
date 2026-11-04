@@ -183,12 +183,6 @@ func (s *Service) Complete(ctx context.Context, telegramID int64, blockID string
 	return s.complete(ctx, telegramID, blockID, "adsgram")
 }
 
-// CompleteBy is the reward callback of a provider that does not know our blocks (TADS): the newest open proof of that Telegram
-// user that offered this provider becomes COMPLETED.
-func (s *Service) CompleteBy(ctx context.Context, telegramID int64, provider string) (bool, error) {
-	return s.complete(ctx, telegramID, "", provider)
-}
-
 // CompleteView is the reward callback of a provider that echoes the id we gave the ad (Monetag's ymid = the proof id): that
 // exact proof becomes COMPLETED, if it is still open, offered this provider and belongs to that Telegram user (0 = not told).
 func (s *Service) CompleteView(ctx context.Context, viewID string, telegramID int64, provider string) (bool, error) {

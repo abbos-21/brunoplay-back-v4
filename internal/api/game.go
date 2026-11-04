@@ -162,7 +162,7 @@ func (d *Deps) checkAdPlacement(r *http.Request, playerID int64, placement strin
 func (d *Deps) adsFailed(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
 		Placement string `json:"placement" validate:"required,max=32"`
-		// Reason is what the providers said ("tads: No TADS ads; adsgram: ..."): only written to the log, so the owner can see why no ad appeared
+		// Reason is what the providers said ("monetag: No ads; adsgram: ..."): only written to the log, so the owner can see why no ad appeared
 		Reason string `json:"reason" validate:"max=300"`
 	}
 	if err := httpx.Decode(r, &in); err != nil {
