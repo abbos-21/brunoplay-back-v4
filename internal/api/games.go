@@ -28,7 +28,7 @@ func (d *Deps) gameRoutes(r chi.Router) {
 			r.Post("/chest/pick", httpx.Wrap(d.chestPick))
 			r.Post("/ride/start", httpx.Wrap(d.rideStart))
 			r.Post("/ride/finish", httpx.Wrap(d.rideFinish))
-			r.Post("/exchange", httpx.Wrap(d.exchangeStars))
+			r.Post("/exchange", httpx.Wrap(d.exchangeBuyStars))
 			r.Post("/gifts/{id}/sell", httpx.Wrap(d.giftSell))
 			r.Post("/gifts/{id}/claim", httpx.Wrap(d.giftClaim))
 		})
@@ -179,12 +179,12 @@ type exchangeReq struct {
 	Stars int64 `json:"stars" validate:"required,gt=0,lte=1000000000"`
 }
 
-func (d *Deps) exchangeStars(w http.ResponseWriter, r *http.Request) error {
+func (d *Deps) exchangeBuyStars(w http.ResponseWriter, r *http.Request) error {
 	var in exchangeReq
 	if err := httpx.Decode(r, &in); err != nil {
 		return err
 	}
-	res, err := d.Games.ExchangeStars(r.Context(), httpx.PlayerFrom(r.Context()).ID, in.Stars)
+	res, err := d.Games.ExchangeCoins(r.Context(), httpx.PlayerFrom(r.Context()).ID, in.Stars)
 	if err != nil {
 		return err
 	}
