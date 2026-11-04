@@ -27,6 +27,8 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/daily/combo/submit` | player |
 | GET | `/api/daily/streak` | player |
 | POST | `/api/daily/streak/claim` | player |
+| GET | `/api/exchange` | player |
+| POST | `/api/exchange` | player |
 | GET | `/api/fishing` | player |
 | POST | `/api/fishing/collect` | player |
 | POST | `/api/fishing/start` | player |

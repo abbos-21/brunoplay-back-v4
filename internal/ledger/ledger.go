@@ -48,6 +48,8 @@ const (
 	ReasonRideCharge        = "ride_charge"
 	ReasonRideReward        = "ride_reward"
 	ReasonGiftSell          = "gift_sell"
+	ReasonExchangeStars     = "exchange_stars"
+	ReasonExchangeCoins     = "exchange_coins"
 	ReasonTournamentFee     = "tournament_fee"
 	ReasonTournamentPrize   = "tournament_prize"
 	ReasonTournamentRefund  = "tournament_refund"

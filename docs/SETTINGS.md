@@ -77,6 +77,8 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `chest.prize_multiplier` | float | `2.7` | Chest: what the prize chest pays, as a multiple of the round price. Every round has 3 chests and one holds the prize, the player opens one, so the chance is 1 in 3: 3 pays back 100%, 2.7 pays back 90% |
 | `chest.round_cost_stars` | int | **required** | Chest round price (stars) |
 | `chest.round_expiry_hours` | int | `0` | Hours an unfinished chest round stays open (0 = forever) |
+| `exchange.coins_per_star` | float | `10000` | Stars to coins: how many coins one star gives (0 = the exchange is switched off) |
+| `exchange.min_stars` | int | `1` | Stars to coins: the smallest amount of stars in one exchange |
 | `gifts` | json | **required** | Gifts [{key,name_en,name_ru,star_value}] |
 | `guard.coin_value_stars` | float | `0` | Payout guard: how many stars one coin is worth when counting coin prizes (0 = coins are not counted) |
 | `guard.max_payout_ratio` | float | `0` | Payout guard: maximum payout ratio, e.g. 0.95 (0 = guard off) |

@@ -19,6 +19,7 @@ func (d *Deps) gameRoutes(r chi.Router) {
 		r.Get("/ride/me", httpx.Wrap(d.rideMe))
 		r.Get("/gifts", httpx.Wrap(d.giftList))
 		r.Get("/gifts/art", httpx.Wrap(d.giftArtList))
+		r.Get("/exchange", httpx.Wrap(d.exchangeInfo))
 
 		r.Group(func(r chi.Router) {
 			r.Use(d.MW.Limit(d.MoneyLimit, "money"), d.MW.Idempotency)
@@ -27,6 +28,7 @@ func (d *Deps) gameRoutes(r chi.Router) {
 			r.Post("/chest/pick", httpx.Wrap(d.chestPick))
 			r.Post("/ride/start", httpx.Wrap(d.rideStart))
 			r.Post("/ride/finish", httpx.Wrap(d.rideFinish))
+			r.Post("/exchange", httpx.Wrap(d.exchangeStars))
 			r.Post("/gifts/{id}/sell", httpx.Wrap(d.giftSell))
 			r.Post("/gifts/{id}/claim", httpx.Wrap(d.giftClaim))
 		})
@@ -161,6 +163,32 @@ func (d *Deps) giftList(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	httpx.JSON(w, 200, map[string]any{"gifts": l})
+	return nil
+}
+
+func (d *Deps) exchangeInfo(w http.ResponseWriter, r *http.Request) error {
+	info, err := d.Games.ExchangeInfo(r.Context())
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, info)
+	return nil
+}
+
+type exchangeReq struct {
+	Stars int64 `json:"stars" validate:"required,gt=0,lte=1000000000"`
+}
+
+func (d *Deps) exchangeStars(w http.ResponseWriter, r *http.Request) error {
+	var in exchangeReq
+	if err := httpx.Decode(r, &in); err != nil {
+		return err
+	}
+	res, err := d.Games.ExchangeStars(r.Context(), httpx.PlayerFrom(r.Context()).ID, in.Stars)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, res)
 	return nil
 }
 
