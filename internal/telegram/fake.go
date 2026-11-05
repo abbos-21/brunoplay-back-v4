@@ -33,6 +33,9 @@ type FakeAPI struct {
 	Refunds   []string
 	PreCheck  map[string]bool
 	Members   map[string]string // "chat:user" -> status
+	Boosts    map[string]int    // "chat:user" -> active boosts of the user on the chat
+	// FailBoosts makes the boost check fail with this error (nil = it works)
+	FailBoosts error
 	Commands  map[string]map[string]string
 	WebhookTo string
 	// FailSend returns an error for a chat (ErrBlocked, RateLimited...).
@@ -40,7 +43,7 @@ type FakeAPI struct {
 }
 
 func NewFake() *FakeAPI {
-	return &FakeAPI{PreCheck: map[string]bool{}, Members: map[string]string{}, FailSend: map[int64]error{}, Commands: map[string]map[string]string{}}
+	return &FakeAPI{PreCheck: map[string]bool{}, Members: map[string]string{}, FailSend: map[int64]error{}, Boosts: map[string]int{}, Commands: map[string]map[string]string{}}
 }
 
 func (f *FakeAPI) SendMessage(ctx context.Context, chatID int64, text string, o SendOpts) error {
@@ -91,6 +94,15 @@ func (f *FakeAPI) RefundStarPayment(ctx context.Context, userID int64, chargeID 
 	defer f.mu.Unlock()
 	f.Refunds = append(f.Refunds, chargeID)
 	return nil
+}
+
+func (f *FakeAPI) GetUserChatBoosts(ctx context.Context, chat string, userID int64) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.FailBoosts != nil {
+		return 0, f.FailBoosts
+	}
+	return f.Boosts[fmt.Sprintf("%s:%d", chat, userID)], nil
 }
 
 func (f *FakeAPI) GetChatMemberStatus(ctx context.Context, chat string, userID int64) (string, error) {

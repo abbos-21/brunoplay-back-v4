@@ -22,6 +22,7 @@ import (
 
 const (
 	TypeChannel = "CHANNEL_JOIN"
+	TypeBoost   = "CHANNEL_BOOST"
 	TypeInvite  = "INVITE_FRIENDS"
 	TypeLink    = "OPEN_LINK"
 	TypeAds     = "WATCH_ADS"
@@ -264,6 +265,29 @@ func (s *Service) Check(ctx context.Context, p *players.Player, taskID int64) (*
 			return notDone()
 		}
 		prog = t.Required
+	case TypeBoost:
+		// the player boosted the channel (any channel the owner named in the task); only an active boost counts
+		if t.Channel == "" {
+			return nil, apperr.ConfigMissing.With("key", "task channel")
+		}
+		chat := t.Channel
+		if !strings.HasPrefix(chat, "@") && !strings.HasPrefix(chat, "-") {
+			chat = "@" + chat
+		}
+		var tg int64
+		if err := s.pool.QueryRow(ctx, `SELECT telegram_id FROM players WHERE id=$1`, p.ID).Scan(&tg); err != nil {
+			return nil, err
+		}
+		boosts, err := s.tg.GetUserChatBoosts(ctx, chat, tg)
+		if err != nil {
+			return nil, apperr.TaskCannotVerify.Wrap(err)
+		}
+		if boosts < 1 {
+			res.Error = apperr.TaskNotBoosted.Code
+			res.Message = apperr.TaskNotBoosted.Message(p.Lang())
+			return res, nil
+		}
+		prog = t.Required
 	case TypeInvite:
 		n, err := s.inviteCount(ctx, s.pool, p.ID, start)
 		if err != nil {
@@ -388,7 +412,7 @@ func (s *Service) Done(ctx context.Context, q db.Querier, playerID, taskID int64
 
 type Input struct {
 	Category    string     `json:"category" validate:"required,oneof=MAIN OTHER"`
-	Type        string     `json:"type" validate:"required,oneof=CHANNEL_JOIN INVITE_FRIENDS OPEN_LINK WATCH_ADS"`
+	Type        string     `json:"type" validate:"required,oneof=CHANNEL_JOIN CHANNEL_BOOST INVITE_FRIENDS OPEN_LINK WATCH_ADS"`
 	TitleEN     string     `json:"titleEn" validate:"required,max=200"`
 	TitleRU     string     `json:"titleRu" validate:"required,max=200"`
 	DescEN      string     `json:"descEn" validate:"max=500"`
@@ -409,7 +433,7 @@ func (in *Input) check() error {
 	if in.Repeat == "" {
 		in.Repeat = "ONCE"
 	}
-	if in.Type == TypeChannel && in.Channel == "" {
+	if (in.Type == TypeChannel || in.Type == TypeBoost) && in.Channel == "" {
 		return apperr.Validation.With("field", "channelUsername")
 	}
 	if in.Type == TypeLink && in.URL == "" {

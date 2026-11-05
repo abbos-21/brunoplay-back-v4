@@ -8,3 +8,4 @@ coverage.out
 *.log
 !.env.deploy.example
 scripts/seed-snapshot.json
+.playwright-cli/

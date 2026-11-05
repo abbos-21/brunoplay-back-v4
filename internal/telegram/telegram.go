@@ -118,6 +118,8 @@ type API interface {
 	AnswerCallbackQuery(ctx context.Context, id, text string) error
 	RefundStarPayment(ctx context.Context, userID int64, chargeID string) error
 	GetChatMemberStatus(ctx context.Context, chat string, userID int64) (string, error)
+	// GetUserChatBoosts counts the boosts a user has on a channel that have not expired (the bot must be an administrator of the channel)
+	GetUserChatBoosts(ctx context.Context, chat string, userID int64) (int, error)
 	SetWebhook(ctx context.Context, url, secret string) error
 	SetCommands(ctx context.Context, lang string, cmds map[string]string) error
 }
@@ -237,11 +239,7 @@ func (c *Client) SendMessage(ctx context.Context, chatID int64, text string, o S
 
 // SendToChat posts to a channel or group named by "@username" or by its numeric id. The bot must be an admin of a channel.
 func (c *Client) SendToChat(ctx context.Context, chat string, text string, o SendOpts) error {
-	var id any = chat
-	if n, err := strconv.ParseInt(strings.TrimSpace(chat), 10, 64); err == nil {
-		id = n
-	}
-	p := map[string]any{"chat_id": id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": true}
+	p := map[string]any{"chat_id": chatArg(chat), "text": text, "parse_mode": "HTML", "disable_web_page_preview": true}
 	if kb := keyboard(o.Buttons); kb != nil {
 		p["reply_markup"] = kb
 	}
@@ -287,6 +285,33 @@ func (c *Client) GetChatMemberStatus(ctx context.Context, chat string, userID in
 	}
 	err := c.call(ctx, "getChatMember", map[string]any{"chat_id": chat, "user_id": userID}, &m)
 	return m.Status, err
+}
+
+// chatArg turns "@username" or a numeric id written as text into what the Bot API wants for chat_id.
+func chatArg(chat string) any {
+	if n, err := strconv.ParseInt(strings.TrimSpace(chat), 10, 64); err == nil {
+		return n
+	}
+	return strings.TrimSpace(chat)
+}
+
+// GetUserChatBoosts asks Telegram for the boosts a user has on a channel and counts those that are still active.
+func (c *Client) GetUserChatBoosts(ctx context.Context, chat string, userID int64) (int, error) {
+	var out struct {
+		Boosts []struct {
+			ExpirationDate int64 `json:"expiration_date"`
+		} `json:"boosts"`
+	}
+	if err := c.call(ctx, "getUserChatBoosts", map[string]any{"chat_id": chatArg(chat), "user_id": userID}, &out); err != nil {
+		return 0, err
+	}
+	n, now := 0, time.Now().Unix()
+	for _, b := range out.Boosts {
+		if b.ExpirationDate > now {
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (c *Client) SetWebhook(ctx context.Context, url, secret string) error {

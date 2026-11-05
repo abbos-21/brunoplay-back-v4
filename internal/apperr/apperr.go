@@ -165,6 +165,7 @@ var (
 	// tasks / friends
 	TaskDone         = def("TASK_ALREADY_COMPLETED", http.StatusConflict, "You already completed this task", "Вы уже выполнили это задание")
 	TaskCannotVerify = def("TASK_CANNOT_VERIFY", http.StatusServiceUnavailable, "We cannot verify this task right now, try again later", "Сейчас не удаётся проверить задание, попробуйте позже")
+	TaskNotBoosted   = def("TASK_NOT_BOOSTED", http.StatusConflict, "We did not find your boost of this channel. Boost it first (Telegram Premium is needed), then press Check", "Мы не нашли ваш буст этого канала. Сначала поставьте буст (нужен Telegram Premium), затем нажмите «Проверить»")
 	TaskNotDone      = def("TASK_NOT_COMPLETED", http.StatusConflict, "The task is not completed yet", "Задание ещё не выполнено")
 
 	// withdrawals
