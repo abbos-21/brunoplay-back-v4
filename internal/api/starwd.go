@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	"brunoplay/internal/admin"
+	"brunoplay/internal/apperr"
 	"brunoplay/internal/httpx"
+	"brunoplay/internal/payoutfeed"
 )
 
 // Star withdrawals: the player asks to take game stars out as real Telegram Stars; an admin sends them by hand.
@@ -47,6 +49,15 @@ func (d *Deps) starWdCreate(w http.ResponseWriter, r *http.Request) error {
 
 // ---- admin
 
+// adminPayoutFeedTest posts a short test message to the payouts channel (is the bot an admin there?).
+func (d *Deps) adminPayoutFeedTest(w http.ResponseWriter, r *http.Request) error {
+	if err := d.PayoutFeed.SendTest(r.Context()); err != nil {
+		return apperr.AdminRefused.With("why", "The test post failed: "+err.Error()+". Add the bot to the channel as an administrator with the right to post messages, and check Settings → payouts.channel.")
+	}
+	httpx.JSON(w, 200, map[string]bool{"ok": true})
+	return nil
+}
+
 func (d *Deps) adminStarWdList(w http.ResponseWriter, r *http.Request) error {
 	l, err := d.Games.AdminStarWithdrawals(r.Context(), r.URL.Query().Get("status"), queryInt(r, "before", 0), int(queryInt(r, "limit", 50)))
 	if err != nil {
@@ -68,6 +79,8 @@ func (d *Deps) adminStarWdDeliver(w http.ResponseWriter, r *http.Request) error 
 	}
 	_ = admin.Audit(r.Context(), d.Pool, who, "star_withdrawal.deliver", "star_withdrawal", itoa(id), nil, map[string]any{"player": owner, "stars": stars})
 	_ = d.Notify.Send(r.Context(), d.Pool, owner, "star_withdrawal_delivered", map[string]any{"stars": stars}, fmt.Sprintf("starwd:%d:delivered", id))
+	// ... and to the public payouts channel
+	_ = d.PayoutFeed.Enqueue(r.Context(), d.Pool, payoutfeed.KindStars, id, payoutfeed.Payload{Name: d.displayName(r.Context(), d.Pool, owner), Stars: stars})
 	httpx.JSON(w, 200, map[string]bool{"ok": true})
 	return nil
 }

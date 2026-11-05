@@ -108,6 +108,10 @@ const (
 	KeySpinPublishOdds  = "spin.publish_odds"
 	KeyGuardCoinValue   = "guard.coin_value_stars"
 	KeyExchangeRate     = "exchange.coins_per_star"
+	KeyPayoutsChannel   = "payouts.channel"
+	KeyPayoutsTon       = "payouts.post_ton"
+	KeyPayoutsStars     = "payouts.post_stars"
+	KeyPayoutsNames     = "payouts.show_names"
 	KeyExchangeMinStars = "exchange.min_stars"
 
 	// star withdrawals (manual: an admin sends the Telegram Stars)
@@ -334,6 +338,10 @@ func Registry() []Def {
 		i(KeyStarWdTotal, "withdrawal", "Star withdrawals: stars one player may ask for in total", 20000, 1, 1000000000),
 		s(KeyStarWdNoticeEN, "withdrawal", "Star withdrawals: notice on the screen (English)", "Requests are checked within 24 hours."),
 		s(KeyStarWdNoticeRU, "withdrawal", "Star withdrawals: notice on the screen (Russian)", "Заявки проверяются в течение 24 часов."),
+		s(KeyPayoutsChannel, "notifications", "Payouts channel: every paid withdrawal is posted there by the bot. The channel's @username (for example @brunoplay_payouts) or its numeric id; the bot must be an ADMIN of the channel with the right to post. Empty = no posts", ""),
+		b(KeyPayoutsTon, "notifications", "Payouts channel: post paid TON withdrawals", true),
+		b(KeyPayoutsStars, "notifications", "Payouts channel: post delivered star withdrawals", true),
+		b(KeyPayoutsNames, "notifications", "Payouts channel: show a masked name (B***o); false = just 'Player'", true),
 		i(KeyWinnersMin, "games", "Smallest prize worth, in stars, shown in the winners feed (0 = every prize)", 0, 0, big),
 
 		obj(KeyRefLevelRewards, "friends", "Coins the inviter gets when a friend reaches a level: {\"2\":200,...}", nil),

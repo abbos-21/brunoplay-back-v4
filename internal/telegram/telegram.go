@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -109,6 +110,8 @@ type InvoiceParams struct {
 // API is what the backend needs from the Bot API.
 type API interface {
 	SendMessage(ctx context.Context, chatID int64, text string, o SendOpts) error
+	// SendToChat posts to a channel or group named by "@username" or by its numeric id (as text)
+	SendToChat(ctx context.Context, chat string, text string, o SendOpts) error
 	EditMessage(ctx context.Context, chatID, messageID int64, text string, o SendOpts) error
 	CreateInvoiceLink(ctx context.Context, p InvoiceParams) (string, error)
 	AnswerPreCheckoutQuery(ctx context.Context, id string, ok bool, errMsg string) error
@@ -226,6 +229,19 @@ func (c *Client) SendMessage(ctx context.Context, chatID int64, text string, o S
 		return c.call(ctx, "sendPhoto", p, nil)
 	}
 	p := map[string]any{"chat_id": chatID, "text": text, "parse_mode": "HTML", "disable_web_page_preview": true}
+	if kb := keyboard(o.Buttons); kb != nil {
+		p["reply_markup"] = kb
+	}
+	return c.call(ctx, "sendMessage", p, nil)
+}
+
+// SendToChat posts to a channel or group named by "@username" or by its numeric id. The bot must be an admin of a channel.
+func (c *Client) SendToChat(ctx context.Context, chat string, text string, o SendOpts) error {
+	var id any = chat
+	if n, err := strconv.ParseInt(strings.TrimSpace(chat), 10, 64); err == nil {
+		id = n
+	}
+	p := map[string]any{"chat_id": id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": true}
 	if kb := keyboard(o.Buttons); kb != nil {
 		p["reply_markup"] = kb
 	}

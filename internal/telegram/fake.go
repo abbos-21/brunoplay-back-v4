@@ -14,10 +14,20 @@ type Sent struct {
 	Photo   string
 }
 
+// SentChat is one recorded post to a channel.
+type SentChat struct {
+	Chat    string
+	Text    string
+	Buttons [][]Button
+}
+
 // FakeAPI records calls and lets tests script failures. It never touches the network.
 type FakeAPI struct {
 	mu        sync.Mutex
 	Messages  []Sent
+	ChatPosts []SentChat
+	// FailChat makes posts to channels fail with this error (nil = they work)
+	FailChat error
 	Edits     []Sent
 	Invoices  []InvoiceParams
 	Refunds   []string
@@ -40,6 +50,16 @@ func (f *FakeAPI) SendMessage(ctx context.Context, chatID int64, text string, o 
 		return err
 	}
 	f.Messages = append(f.Messages, Sent{ChatID: chatID, Text: text, Buttons: o.Buttons, Photo: o.PhotoURL})
+	return nil
+}
+
+func (f *FakeAPI) SendToChat(ctx context.Context, chat string, text string, o SendOpts) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.FailChat != nil {
+		return f.FailChat
+	}
+	f.ChatPosts = append(f.ChatPosts, SentChat{Chat: chat, Text: text, Buttons: o.Buttons})
 	return nil
 }
 

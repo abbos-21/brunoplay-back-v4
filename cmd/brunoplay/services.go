@@ -98,6 +98,7 @@ func (s *services) registerJobs(r *jobs.Runner) {
 		_, err := s.deps.Withdrawals.RunPayouts(ctx, 20)
 		return err
 	}})
+	r.Add(jobs.Job{Name: "payout-feed", Every: 5 * time.Second, Timeout: time.Minute, Run: d.PayoutFeed.Run})
 	r.Add(jobs.Job{Name: "payout-reconcile", Every: time.Minute, Run: func(ctx context.Context) error {
 		_, err := s.deps.Withdrawals.Reconcile(ctx)
 		return err

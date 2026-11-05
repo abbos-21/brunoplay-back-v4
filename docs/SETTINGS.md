@@ -120,6 +120,10 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `notifications.idle_hours` | int | `12` | Hours without fishing before the 'start fishing' message |
 | `notifications.quiet_hours` | json | `map[from:-1 to:-1]` | Quiet hours in UTC {from,to} (null = none) |
 | `notifications.warn_hours` | json | `[6 1]` | Hours before the daily reset to warn |
+| `payouts.channel` | string | `` | Payouts channel: every paid withdrawal is posted there by the bot. The channel's @username (for example @brunoplay_payouts) or its numeric id; the bot must be an ADMIN of the channel with the right to post. Empty = no posts |
+| `payouts.post_stars` | bool | `true` | Payouts channel: post delivered star withdrawals |
+| `payouts.post_ton` | bool | `true` | Payouts channel: post paid TON withdrawals |
+| `payouts.show_names` | bool | `true` | Payouts channel: show a masked name (B***o); false = just 'Player' |
 
 ## system
 

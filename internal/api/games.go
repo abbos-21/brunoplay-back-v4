@@ -230,6 +230,7 @@ func (d *Deps) gameAdminRoutes(r chi.Router) {
 	r.With(d.adminAuth("gifts.write")).Post("/gifts/{id}/reject", httpx.Wrap(d.adminGiftReject))
 	r.With(d.adminAuth("dashboard.read")).Get("/games/guard", httpx.Wrap(d.adminGuard))
 	r.With(d.adminAuth("withdrawals.read")).Get("/star-withdrawals", httpx.Wrap(d.adminStarWdList))
+	r.With(d.adminAuth("withdrawals.write")).Post("/payout-feed/test", httpx.Wrap(d.adminPayoutFeedTest))
 	r.With(d.adminAuth("withdrawals.write")).Post("/star-withdrawals/{id}/deliver", httpx.Wrap(d.adminStarWdDeliver))
 	r.With(d.adminAuth("withdrawals.write")).Post("/star-withdrawals/{id}/cancel", httpx.Wrap(d.adminStarWdCancel))
 	d.giftCatalogRoutes(r)

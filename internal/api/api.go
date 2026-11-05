@@ -21,6 +21,7 @@ import (
 	"brunoplay/internal/httpx"
 	"brunoplay/internal/notify"
 	"brunoplay/internal/ops"
+	"brunoplay/internal/payoutfeed"
 	"brunoplay/internal/players"
 	"brunoplay/internal/ratelimit"
 	"brunoplay/internal/referrals"
@@ -64,6 +65,7 @@ type Deps struct {
 	Chain        ton.Chain
 	Topup        *topup.Service
 	Withdrawals  *withdrawals.Service
+	PayoutFeed   *payoutfeed.Service
 	PlayerTokens *token.Signer
 	MW           *httpx.MW
 	Now          func() time.Time
@@ -132,6 +134,13 @@ func NewDeps(cfg config.Config, pool *pgxpool.Pool) *Deps {
 	d.Withdrawals.Now = d.now
 	d.Withdrawals.Alert = d.Alert
 	d.Notify = notify.New(pool, st, d.TG, cfg.WebAppURL)
+	playURL := ""
+	if cfg.BotUsername != "" && cfg.BotAppName != "" {
+		playURL = "https://t.me/" + cfg.BotUsername + "/" + cfg.BotAppName
+	}
+	d.PayoutFeed = payoutfeed.New(pool, st, d.TG, playURL)
+	d.PayoutFeed.Now = d.now
+	d.PayoutFeed.Alert = d.Alert
 	d.Notify.Now = d.now
 	d.Tournaments = tournaments.New(pool, ps, d.Games)
 	d.Tournaments.Now = d.now

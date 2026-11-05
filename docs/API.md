@@ -126,6 +126,7 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/admin/notifications/templates` | admin |
 | DELETE | `/api/admin/notifications/templates/{type}/{lang}` | admin |
 | PUT | `/api/admin/notifications/templates/{type}/{lang}` | admin |
+| POST | `/api/admin/payout-feed/test` | admin |
 | GET | `/api/admin/players` | admin |
 | GET | `/api/admin/players/{id}` | admin |
 | POST | `/api/admin/players/{id}/adjust` | admin |

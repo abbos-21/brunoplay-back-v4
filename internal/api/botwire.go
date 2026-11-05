@@ -18,6 +18,7 @@ import (
 	"brunoplay/internal/gameday"
 	"brunoplay/internal/httpx"
 	"brunoplay/internal/notify"
+	"brunoplay/internal/payoutfeed"
 	"brunoplay/internal/settings"
 	"brunoplay/internal/shop"
 	"brunoplay/internal/telegram"
@@ -129,7 +130,14 @@ func (d *Deps) wireBot() {
 		if w.TxHash != nil {
 			tx2 = *w.TxHash
 		}
-		return n.Send(ctx, tx, w.PlayerID, "withdrawal_"+event, map[string]any{"coins": w.AmountCoins, "ton": w.AmountTon, "tx": tx2}, fmt.Sprintf("wd:%d:%s", w.ID, event))
+		if err := n.Send(ctx, tx, w.PlayerID, "withdrawal_"+event, map[string]any{"coins": w.AmountCoins, "ton": w.AmountTon, "tx": tx2}, fmt.Sprintf("wd:%d:%s", w.ID, event)); err != nil {
+			return err
+		}
+		if event != "completed" {
+			return nil
+		}
+		// a paid TON withdrawal goes to the public payouts channel (queued in this same transaction, sent by the worker)
+		return d.PayoutFeed.Enqueue(ctx, tx, payoutfeed.KindTon, w.ID, payoutfeed.Payload{Name: d.displayName(ctx, tx, w.PlayerID), Coins: w.AmountCoins, Ton: w.AmountTon, Tx: tx2})
 	})
 	d.Topup.OnPaid = append(d.Topup.OnPaid, func(ctx context.Context, tx pgx.Tx, ev topup.PaidEvent) error {
 		return n.Send(ctx, tx, ev.PlayerID, "topup_paid", map[string]any{"stars": ev.Stars + ev.Bonus}, "topup:"+ev.OrderID)
