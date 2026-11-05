@@ -82,5 +82,6 @@ so keep `TRUSTED_PROXY=true` only behind the bundled Caddy (it sets the real cli
 | Remove all players, keep settings and content | `deploy/reset-game.sh` | full backup first, refuses while a withdrawal, gift claim or top-up is open; what goes and what stays is at the top of `scripts/reset-game.sql` |
 | Delete EVERYTHING and start empty | `deploy/wipe-database.sh` | full backup first; creates the first admin; afterwards restore the settings with the seed below |
 | Save / restore settings and tasks | `scripts/seed-snapshot.mjs` | `--export` writes `scripts/seed-snapshot.json` from a live server; without `--export` it puts it back (dry run first, `--apply` to write). The snapshot file is in `.gitignore` on purpose (the repositories are public): keep your own copy. Not in the snapshot: admin accounts, combo images and patterns, notification templates, gift pictures |
+| Post past payouts in the payouts channel | `deploy/backfill-payouts.sh` (dry run) then `--apply` | queues a post, with the payout date, for every paid TON withdrawal and delivered star withdrawal that has no post yet, oldest first, one every 5 seconds; safe to run again |
 
 The backups made before a reset or a wipe are kept for good in `~/brunoplay-backups/before-reset/` and `before-wipe/`.

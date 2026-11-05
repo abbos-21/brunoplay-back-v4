@@ -160,3 +160,85 @@ func TestMaskName(t *testing.T) {
 		}
 	}
 }
+
+// Payouts that were paid before the channel existed are posted afterwards, oldest first, with their date, spaced out, and never twice.
+func TestPayoutsBackfillPostsPastPayoutsOnce(t *testing.T) {
+	e := newEnv(t)
+	e.wdConfig()
+	fake := telegram.NewFake()
+	e.d.PayoutFeed.SetSender(fake)
+	e.d.PayoutFeed.PlayURL = "https://t.me/test_bot/play"
+	fin := e.adminLogin("fin@example.com", admin.RoleFinance)
+	ctx := context.Background()
+	e.setSetting(settings.KeyStarWdMinLevel, 1)
+	e.setSetting(settings.KeyStarWdMinAgeDays, 0)
+
+	paidTon := func(tg int64) {
+		t.Helper()
+		p := e.login(tg, "en", "")
+		e.give(p, ledger.Coin, 100000)
+		r := e.wd(p, 20000, walletAddr(9))
+		id := int(r.JSON(t)["withdrawal"].(map[string]any)["id"].(float64))
+		if c := e.do("POST", fmt.Sprintf("/api/admin/withdrawals/%d/complete", id), fin, map[string]any{"txHash": feedHash}); c.Status != 200 {
+			t.Fatalf("complete: %d %s", c.Status, c.Body)
+		}
+	}
+	// three payouts, two hours apart, while no channel is set
+	paidTon(700)
+	e.now = e.now.Add(2 * time.Hour)
+	fin = e.adminRelogin("fin@example.com") // the admin's session is short
+	paidTon(701)
+	e.now = e.now.Add(2 * time.Hour)
+	fin = e.adminRelogin("fin@example.com")
+	sp := e.login(702, "en", "")
+	e.give(sp, ledger.Star, 1000)
+	e.do("POST", "/api/star-withdrawals", sp.Token, map[string]any{"stars": 300})
+	q := e.do("GET", "/api/admin/star-withdrawals", fin, nil).JSON(t)["withdrawals"].([]any)
+	e.do("POST", fmt.Sprintf("/api/admin/star-withdrawals/%d/deliver", int(q[0].(map[string]any)["id"].(float64))), fin, nil)
+	if e.countRows("payout_posts") != 0 {
+		t.Fatal("nothing was queued without a channel")
+	}
+
+	if _, err := e.d.PayoutFeed.Backfill(ctx, true, 5*time.Second); err == nil {
+		t.Fatal("a backfill needs the channel to be set")
+	}
+	e.setSetting(settings.KeyPayoutsChannel, feedChannel)
+
+	// a dry run counts and writes nothing
+	rep, err := e.d.PayoutFeed.Backfill(ctx, false, 5*time.Second)
+	if err != nil || rep.Ton != 2 || rep.Stars != 1 || e.countRows("payout_posts") != 0 {
+		t.Fatalf("dry run: %+v %v rows=%d", rep, err, e.countRows("payout_posts"))
+	}
+	// applying queues them, spaced 5 seconds apart: none is due at once, all three are due 15 seconds later
+	if rep, err = e.d.PayoutFeed.Backfill(ctx, true, 5*time.Second); err != nil || !rep.Applied || e.countRows("payout_posts") != 3 {
+		t.Fatalf("apply: %+v %v rows=%d", rep, err, e.countRows("payout_posts"))
+	}
+	if err := e.d.PayoutFeed.Run(ctx); err != nil || len(fake.ChatPosts) != 0 {
+		t.Fatalf("nothing is due yet: %d posts %v", len(fake.ChatPosts), err)
+	}
+	e.now = e.now.Add(6 * time.Second)
+	_ = e.d.PayoutFeed.Run(ctx)
+	if len(fake.ChatPosts) != 1 {
+		t.Fatalf("one post every 5 seconds: %d", len(fake.ChatPosts))
+	}
+	e.now = e.now.Add(20 * time.Second)
+	_ = e.d.PayoutFeed.Run(ctx)
+	if len(fake.ChatPosts) != 3 {
+		t.Fatalf("all three: %d", len(fake.ChatPosts))
+	}
+	for i, p := range fake.ChatPosts {
+		if !strings.Contains(p.Text, "📅") || !strings.Contains(p.Text, "Payout sent") {
+			t.Fatalf("post %d has no date: %q", i, p.Text)
+		}
+	}
+	if !strings.Contains(fake.ChatPosts[0].Text, "0.195 TON") || !strings.Contains(fake.ChatPosts[1].Text, "0.195 TON") || !strings.Contains(fake.ChatPosts[2].Text, "300 Stars") {
+		t.Fatalf("oldest first (two TON, then the star payout): %+v", fake.ChatPosts)
+	}
+	// again: nothing is posted twice
+	if rep, err = e.d.PayoutFeed.Backfill(ctx, true, 5*time.Second); err != nil || rep.Ton+rep.Stars != 0 {
+		t.Fatalf("second run: %+v %v", rep, err)
+	}
+	if !strings.Contains(rep.Summary(5*time.Second), "Nothing to post") {
+		t.Fatalf("summary: %s", rep.Summary(5*time.Second))
+	}
+}

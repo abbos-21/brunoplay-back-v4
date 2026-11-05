@@ -58,6 +58,10 @@ func main() {
 		if err := adminCreate(ctx, cfg, os.Args[2:]); err != nil {
 			fatal("admin-create", err)
 		}
+	case "payouts-backfill":
+		if err := payoutsBackfill(ctx, cfg, os.Args[2:]); err != nil {
+			fatal("payouts-backfill", err)
+		}
 	case "admin-reset-password":
 		if err := adminResetPassword(ctx, cfg, os.Args[2:]); err != nil {
 			fatal("admin-reset-password", err)
@@ -69,7 +73,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: brunoplay <api|worker|all|migrate|admin-create --email you@example.com [--name Name]|admin-reset-password --email you@example.com>")
+	fmt.Fprintln(os.Stderr, "usage: brunoplay <api|worker|all|migrate|admin-create --email you@example.com [--name Name]|admin-reset-password --email you@example.com|payouts-backfill [--apply]>")
 }
 
 func fatal(what string, err error) {

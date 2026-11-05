@@ -39,6 +39,7 @@ type Payload struct {
 	Ton   string `json:"ton,omitempty"`   // TON payouts: the amount in TON, as text ("0.002")
 	Tx    string `json:"tx,omitempty"`    // TON payouts: the transaction hash
 	Stars int64  `json:"stars,omitempty"` // star payouts: the stars that were delivered
+	At    string `json:"at,omitempty"`    // the date of the payout, only on posts made afterwards (backfill); live posts leave it out
 }
 
 type Service struct {
@@ -123,6 +124,9 @@ func (s *Service) render(ctx context.Context, kind string, p Payload) (string, t
 	var b strings.Builder
 	b.WriteString("✅ <b>Выплата отправлена · Payout sent</b>\n\n")
 	fmt.Fprintf(&b, "👤 %s\n", name)
+	if p.At != "" {
+		fmt.Fprintf(&b, "📅 %s\n", html.EscapeString(p.At))
+	}
 	if kind == KindStars {
 		fmt.Fprintf(&b, "⭐ <b>%s Stars</b>\n", group(p.Stars))
 	} else {
@@ -238,6 +242,8 @@ func (s *Service) failed(ctx context.Context, d due, cause error) error {
 	}
 	return err
 }
+
+func jsonMarshal(p Payload) ([]byte, error) { return json.Marshal(p) }
 
 func truncate(s string, n int) string {
 	if len(s) > n {
