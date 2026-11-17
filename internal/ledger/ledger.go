@@ -45,6 +45,8 @@ const (
 	ReasonSpinPrize         = "spin_prize"
 	ReasonChestCharge       = "chest_charge"
 	ReasonChestPrize        = "chest_prize"
+	ReasonRouletteCharge    = "roulette_charge"
+	ReasonRoulettePrize     = "roulette_prize"
 	ReasonRideCharge        = "ride_charge"
 	ReasonRideReward        = "ride_reward"
 	ReasonGiftSell          = "gift_sell"

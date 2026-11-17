@@ -3,6 +3,9 @@ package settings
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
+	"strings"
 )
 
 // Setting keys. A key with Default == nil is a value the owner must supply (ToR section 11).
@@ -88,6 +91,9 @@ const (
 
 	// games
 	KeySpinTiers        = "spin.tiers"
+	KeyRouletteCost     = "roulette.cost_stars"
+	KeyRoulettePrizes   = "roulette.prizes"
+	KeyRoulettePublic   = "roulette.public"
 	KeyGifts            = "gifts"
 	KeyChestCost        = "chest.round_cost_stars"
 	KeyChestExpiryH     = "chest.round_expiry_hours"
@@ -209,6 +215,54 @@ func cardsCheck(raw json.RawMessage) error {
 	return nil
 }
 
+// DefaultRoulettePrizes is the roulette that works out of the box: the eight gifts of the catalogue and four coin prizes. The weights
+// are chances per million spins. With the usual star values of those gifts and a price of 15 stars it pays back about 92%.
+func DefaultRoulettePrizes() []map[string]any {
+	g := func(key string, w float64) map[string]any { return map[string]any{"type": "gift", "gift": key, "weight": w} }
+	c := func(v int64, w float64) map[string]any {
+		return map[string]any{"type": "coins", "value": v, "weight": w}
+	}
+	return []map[string]any{
+		g("frog", 2), g("heart", 4), g("cap", 5), g("panda", 60), g("apple", 80), g("cat", 120), g("ring", 250), g("watch", 300),
+		c(5000, 4000), c(3000, 10000), c(1500, 80000), c(500, 905179),
+	}
+}
+
+// roulettePrizesCheck validates the roulette prize list: 2 to 40 prizes, a known type, a gift key for gifts, a positive value for
+// coins and stars, a positive weight.
+func roulettePrizesCheck(raw json.RawMessage) error {
+	var list []struct {
+		Type   string  `json:"type"`
+		Gift   string  `json:"gift"`
+		Value  int64   `json:"value"`
+		Weight float64 `json:"weight"`
+	}
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return errors.New("must be a list of prizes")
+	}
+	if len(list) < 2 || len(list) > 40 {
+		return errors.New("needs 2 to 40 prizes")
+	}
+	for i, p := range list {
+		switch p.Type {
+		case "gift":
+			if strings.TrimSpace(p.Gift) == "" {
+				return fmt.Errorf("prize %d: a gift needs its key", i+1)
+			}
+		case "coins", "stars":
+			if p.Value <= 0 {
+				return fmt.Errorf("prize %d: the value must be positive", i+1)
+			}
+		default:
+			return fmt.Errorf("prize %d: the type must be gift, coins or stars", i+1)
+		}
+		if !(p.Weight > 0) || math.IsInf(p.Weight, 0) {
+			return fmt.Errorf("prize %d: the weight must be a positive number", i+1)
+		}
+	}
+	return nil
+}
+
 // Registry lists every setting with its safe default (nil default = must be configured).
 func Registry() []Def {
 	i := func(key, group, desc string, def any, min, max float64) Def {
@@ -311,6 +365,10 @@ func Registry() []Def {
 
 		arr(KeySpinTiers, "games", "Spin tiers [{tier,price_stars}]", nil),
 		arr(KeyGifts, "games", "Gifts [{key,name_en,name_ru,star_value}]", nil),
+		b(KeyRoulettePublic, "games", "Roulette: open to every player (false = only the admin whose Telegram id is ALERT_CHAT_ID in .env can see and play it; use that to test it in production before anybody else)", false),
+		i(KeyRouletteCost, "games", "Roulette: the price of one spin (stars). Every spin wins one of the roulette.prizes. The expected payout per spin is the sum of (weight / total weight) x star value over the prizes (a coin counts for guard.coin_value_stars); keep it below this price, for example 90% of it", 15, 0, 1000000),
+		Def{Key: KeyRoulettePrizes, Kind: KJSON, Group: "games", Check: roulettePrizesCheck, Default: DefaultRoulettePrizes(),
+			Desc: "Roulette prizes [{type: gift|coins|stars, gift: gift key (type gift), value: coins or stars (type coins or stars), weight: relative chance}]. A gift is worth its star value from the gift catalogue. Weights are relative: a prize of weight 2 comes twice as often as one of weight 1"},
 		i(KeyChestCost, "games", "Chest round price (stars)", nil, 0, big),
 		i(KeyChestExpiryH, "games", "Hours an unfinished chest round stays open (0 = forever)", 0, 0, 100000),
 		fl(KeySpinWinChance, "games", "Spin: the chance in percent that a spin WINS (it then pays the price times spin.win_multiplier; otherwise nothing). 50 with a multiplier of 2 is a fair game that pays back 100%; 45 pays back 90%", 45, 0, 100),

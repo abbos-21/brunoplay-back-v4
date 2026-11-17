@@ -6,7 +6,9 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"brunoplay/internal/admin"
+	"brunoplay/internal/apperr"
 	"brunoplay/internal/httpx"
+	"brunoplay/internal/settings"
 )
 
 // gameRoutes: Spin, Chest, Ride, gift collection, winners (milestone 5).
@@ -15,6 +17,7 @@ func (d *Deps) gameRoutes(r chi.Router) {
 		r.Use(d.MW.PlayerAuth(false))
 		r.Get("/spin/tiers", httpx.Wrap(d.spinTiers))
 		r.Get("/spin/winners", httpx.Wrap(d.spinWinners))
+		r.Get("/roulette", httpx.Wrap(d.rouletteInfo))
 		r.Get("/chest", httpx.Wrap(d.chestState))
 		r.Get("/ride/me", httpx.Wrap(d.rideMe))
 		r.Get("/gifts", httpx.Wrap(d.giftList))
@@ -26,6 +29,7 @@ func (d *Deps) gameRoutes(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(d.MW.Limit(d.MoneyLimit, "money"), d.MW.Idempotency)
 			r.Post("/spin", httpx.Wrap(d.spin))
+			r.Post("/roulette/spin", httpx.Wrap(d.rouletteSpin))
 			r.Post("/chest/round", httpx.Wrap(d.chestRound))
 			r.Post("/chest/pick", httpx.Wrap(d.chestPick))
 			r.Post("/ride/start", httpx.Wrap(d.rideStart))
@@ -59,6 +63,44 @@ func (d *Deps) spin(w http.ResponseWriter, r *http.Request) error {
 	}
 	p := httpx.PlayerFrom(r.Context())
 	res, err := d.Games.Spin(r.Context(), p.ID, in.Tier, in.Count, p.Lang())
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, res)
+	return nil
+}
+
+// rouletteAllowed: until the owner opens the Roulette to everybody (roulette.public) only the admin whose Telegram id is ALERT_CHAT_ID
+// in .env sees it; anybody else is told it does not exist.
+func (d *Deps) rouletteAllowed(r *http.Request) error {
+	p := httpx.PlayerFrom(r.Context())
+	if d.Settings.BoolOr(r.Context(), settings.KeyRoulettePublic, false) {
+		return nil
+	}
+	if d.Cfg.AlertChatID > 0 && p.TelegramID == d.Cfg.AlertChatID {
+		return nil
+	}
+	return apperr.NotFound
+}
+
+func (d *Deps) rouletteInfo(w http.ResponseWriter, r *http.Request) error {
+	if err := d.rouletteAllowed(r); err != nil {
+		return err
+	}
+	info, err := d.Games.Roulette(r.Context(), httpx.PlayerFrom(r.Context()).Lang())
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, info)
+	return nil
+}
+
+func (d *Deps) rouletteSpin(w http.ResponseWriter, r *http.Request) error {
+	if err := d.rouletteAllowed(r); err != nil {
+		return err
+	}
+	p := httpx.PlayerFrom(r.Context())
+	res, err := d.Games.RouletteSpin(r.Context(), p.ID, p.Lang())
 	if err != nil {
 		return err
 	}

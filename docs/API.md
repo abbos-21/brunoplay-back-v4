@@ -49,6 +49,8 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/ride/finish` | player |
 | GET | `/api/ride/me` | player |
 | POST | `/api/ride/start` | player |
+| GET | `/api/roulette` | player |
+| POST | `/api/roulette/spin` | player |
 | GET | `/api/shop/boosters` | player |
 | POST | `/api/shop/boosters/{type}/buy` | player |
 | GET | `/api/shop/cards` | player |
