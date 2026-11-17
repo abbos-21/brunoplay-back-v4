@@ -515,7 +515,7 @@ func (s *Service) claim(ctx context.Context) (*Withdrawal, string, error) {
 			return err
 		}
 		payoutID = fmt.Sprintf("bpw%d", id)
-		if _, err := tx.Exec(ctx, `UPDATE withdrawals SET status='PROCESSING', payout_id=$2, payout_started_at=$3, updated_at=$3 WHERE id=$1`, id, payoutID, s.now()); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE withdrawals SET status='PROCESSING', payout_id=$2, payout_started_at=$3, updated_at=$3, auto_attempts=auto_attempts+1 WHERE id=$1`, id, payoutID, s.now()); err != nil {
 			return err
 		}
 		w = x
@@ -546,13 +546,26 @@ func (s *Service) handBack(ctx context.Context, w *Withdrawal, why string) {
 	s.alert(ctx, "Withdrawal %d could not be sent automatically (%s). It is waiting for a manual payout.", w.ID, why)
 }
 
-// Reconcile looks for payouts that were sent but not recorded (a crash between send and save) by finding their comment in our
-// outgoing transfers; one that cannot be found after 30 minutes is flagged for a human, never resent.
+const (
+	// a transfer message is valid for 3 minutes (the wallet library's default); after this much time since it was handed to the
+	// sender it can no longer land, so "not on the chain" is final and a second transfer cannot double-pay
+	resendAfter = 10 * time.Minute
+	// how many times an automatic payout may be handed to the sender (the first try and one automatic second try)
+	maxAutoAttempts = 2
+	// how many of the wallet's latest transactions are read to look for a payout
+	chainWindow = 100
+)
+
+// Reconcile looks for payouts that were sent but not recorded (a crash between send and save, or "unclear": the confirmation was
+// not seen in time) by finding their comment in our outgoing transfers. A payout that is not on the chain although its message
+// is long expired is sent once more by the worker (the comment is the same and is searched again first, so it cannot be paid
+// twice); after that, or when the chain cannot be read completely, it is left for a human. One that cannot be found after
+// 30 minutes is flagged for a human as before.
 func (s *Service) Reconcile(ctx context.Context) (int, error) {
 	if s.sender == nil || s.chain == nil {
 		return 0, nil
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, payout_id, payout_started_at FROM withdrawals WHERE status='PROCESSING' AND auto AND payout_id IS NOT NULL AND payout_started_at < $1`, s.now().Add(-2*time.Minute))
+	rows, err := s.pool.Query(ctx, `SELECT id, payout_id, payout_started_at, needs_review, auto_attempts FROM withdrawals WHERE status='PROCESSING' AND auto AND payout_id IS NOT NULL AND payout_started_at < $1`, s.now().Add(-2*time.Minute))
 	if err != nil {
 		return 0, err
 	}
@@ -560,11 +573,13 @@ func (s *Service) Reconcile(ctx context.Context) (int, error) {
 		id      int64
 		payout  string
 		started time.Time
+		review  bool
+		tries   int
 	}
 	var cands []cand
 	for rows.Next() {
 		var c cand
-		if err := rows.Scan(&c.id, &c.payout, &c.started); err != nil {
+		if err := rows.Scan(&c.id, &c.payout, &c.started, &c.review, &c.tries); err != nil {
 			rows.Close()
 			return 0, err
 		}
@@ -574,7 +589,7 @@ func (s *Service) Reconcile(ctx context.Context) (int, error) {
 	if len(cands) == 0 {
 		return 0, nil
 	}
-	txs, err := s.chain.Transactions(ctx, s.sender.Address(), 100)
+	txs, err := s.chain.Transactions(ctx, s.sender.Address(), chainWindow)
 	if err != nil {
 		return 0, err
 	}
@@ -594,6 +609,20 @@ func (s *Service) Reconcile(ctx context.Context) (int, error) {
 				return fixed, err
 			}
 			fixed++
+			continue
+		}
+		// the first transfer is certainly not on the chain: its message has expired and the transactions read cover the whole time
+		// since it was handed over (a full window that starts later than that could hide it, so then a human decides)
+		complete := len(txs) < chainWindow || !txs[len(txs)-1].Time.After(c.started)
+		if c.review && c.tries < maxAutoAttempts && complete && s.now().Sub(c.started) > resendAfter {
+			ct, err := s.pool.Exec(ctx, `UPDATE withdrawals SET status='PENDING', needs_review=FALSE, fail_reason='sent again: the first transfer never reached the blockchain', updated_at=$2 WHERE id=$1 AND status='PROCESSING' AND needs_review AND auto_attempts=$3`, c.id, s.now(), c.tries)
+			if err != nil {
+				return fixed, err
+			}
+			if ct.RowsAffected() > 0 {
+				slog.Warn("payout was not on the chain, sending it again", "withdrawal", c.id, "payout", c.payout, "attempt", c.tries+1)
+				s.alert(ctx, "Withdrawal %d: the first transfer never reached the blockchain (checked by its comment %s). It is being sent again automatically.", c.id, c.payout)
+			}
 			continue
 		}
 		if s.now().Sub(c.started) > 30*time.Minute {

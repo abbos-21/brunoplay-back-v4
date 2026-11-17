@@ -89,7 +89,9 @@ func (t *TonSender) Send(ctx context.Context, payoutID, to string, amountNano in
 	}
 	sctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	tx, _, err := t.w.SendWaitTransaction(sctx, msg)
+	// every liteserver gets the message: one overloaded node that takes it and drops it can no longer lose a payout
+	// (a "duplicate message" answer from a second node is not an error when one node accepted it)
+	tx, _, err := t.w.SendWaitTransactionToAllNodes(sctx, msg)
 	if err != nil {
 		return "", err // may or may not have been sent: the caller treats it as unclear
 	}

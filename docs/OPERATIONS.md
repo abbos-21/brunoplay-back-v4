@@ -44,6 +44,14 @@ and put the block ids in the setting `ads.block_ids` (`{"FISHING_START":"...","C
 | Force an app reload | Setting `app.min_version`; apps sending an older `X-App-Version` get `426 UPGRADE_REQUIRED`. |
 | Delete a player (privacy) | Super admin → `POST /api/admin/players/{id}/delete`. Personal data is erased, the money trail stays anonymised. |
 
+### Automatic payouts that end "unclear"
+
+Each payout is sent through all lite servers at once and carries the comment `bpw<withdrawal id>`. When the confirmation is not seen in time the withdrawal is flagged *needs review* and is **not** resent at once. The `payout-reconcile` job (every minute) then looks for that comment among the wallet's latest 100 transactions:
+
+* found: the withdrawal is completed with the real transaction hash and the player gets the message;
+* not found 10 minutes after it was handed to the sender (the message is valid for 3 minutes, so it can no longer land): it is sent **once more** automatically (an alert says so);
+* after two tries, when the chain cannot be read completely, or when Toncenter is down: it stays for a human (Complete with the transaction hash, or Reject with *force* after checking the wallet). When you pay by hand, type the comment exactly as `bpw<id>`.
+
 ## 3. Alerts (Telegram admin chat)
 
 Set `ALERT_CHAT_ID`. You are told about: an overdue message queue, withdrawals waiting over 48 h, payouts stuck over 30 min,

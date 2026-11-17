@@ -772,3 +772,100 @@ func TestAutomaticPayoutIsOffByDefault(t *testing.T) {
 		t.Fatal("without AUTO_PAYOUT and a payout wallet nothing is automatic")
 	}
 }
+
+// An unclear payout that is NOT on the chain once its message has expired is sent once more by itself; one that IS on the chain is
+// just recorded; and nothing is ever sent a third time or while the chain view could hide the first transfer.
+func TestUnclearPayoutIsSentAgainOnlyWhenTheChainShowsItNeverHappened(t *testing.T) {
+	e := newEnv(t)
+	sender := &fakeSender{err: errors.New("transaction was not confirmed in a given deadline")}
+	chain := e.autoSetup(sender)
+	ctx := context.Background()
+	p := e.login(360, "en", "")
+	e.give(p, ledger.Coin, 1000000)
+	id := int64(e.wd(p, 20000, walletAddr(9)).JSON(t)["withdrawal"].(map[string]any)["id"].(float64))
+	state := func() (status string, review bool, tries int) {
+		_ = e.d.Pool.QueryRow(ctx, `SELECT status, needs_review, auto_attempts FROM withdrawals WHERE id=$1`, id).Scan(&status, &review, &tries)
+		return
+	}
+	at := func(d time.Duration) *withdrawals.Service {
+		w := withdrawals.New(e.d.Pool, e.d.Settings, e.d.Players, e.d.Chain, sender, true)
+		w.Alert = func(ctx context.Context, text string) {}
+		base := e.now
+		w.Now = func() time.Time { return base.Add(d) }
+		return w
+	}
+	// first try: unclear
+	_, _ = at(0).RunPayouts(ctx, 5)
+	if st, review, tries := state(); st != "PROCESSING" || !review || tries != 1 || len(sender.calls) != 1 {
+		t.Fatalf("after the first try: %s review=%v tries=%d calls=%d", st, review, tries, len(sender.calls))
+	}
+	e.exec(`UPDATE withdrawals SET payout_started_at=$2 WHERE id=$1`, id, e.now)
+
+	// 5 minutes later: still too early to be sure the message has expired -> nothing happens, nothing is sent
+	if n, err := at(5 * time.Minute).Reconcile(ctx); err != nil || n != 0 {
+		t.Fatalf("early: %d %v", n, err)
+	}
+	_, _ = at(5 * time.Minute).RunPayouts(ctx, 5)
+	if st, review, _ := state(); st != "PROCESSING" || !review || len(sender.calls) != 1 {
+		t.Fatalf("too early to resend: %s review=%v calls=%d", st, review, len(sender.calls))
+	}
+
+	// the chain cannot be read: nothing is decided
+	chain.Err = errors.New("toncenter down")
+	if _, err := at(11 * time.Minute).Reconcile(ctx); err == nil {
+		t.Fatal("a chain error must stop the check")
+	}
+	if st, review, _ := state(); st != "PROCESSING" || !review {
+		t.Fatalf("an unreadable chain must not requeue: %s %v", st, review)
+	}
+	chain.Err = nil
+
+	// a full window of transactions that starts after the payout began could hide it: a human decides
+	full := make([]ton.Tx, 100)
+	for i := range full {
+		full[i] = ton.Tx{Hash: fmt.Sprintf("x%d", i), Time: e.now.Add(time.Minute)}
+	}
+	chain.Txs = full
+	_, _ = at(11 * time.Minute).Reconcile(ctx)
+	if st, review, _ := state(); st != "PROCESSING" || !review {
+		t.Fatalf("an incomplete chain view must not requeue: %s %v", st, review)
+	}
+
+	// 11 minutes, the transfer is on the chain after all (it landed late): it is recorded, never sent again
+	chain.Txs = []ton.Tx{{Hash: "late-hash", Outgoing: []ton.OutMsg{{Destination: walletAddr(9), Value: 195_000_000, Comment: fmt.Sprintf("bpw%d", id)}}}}
+	if n, err := at(11 * time.Minute).Reconcile(ctx); err != nil || n != 1 {
+		t.Fatalf("found: %d %v", n, err)
+	}
+	if st, _, _ := state(); st != "COMPLETED" || len(sender.calls) != 1 {
+		t.Fatalf("found on the chain: %s calls=%d", st, len(sender.calls))
+	}
+
+	// the same payout again, but the chain really has nothing: it is requeued and sent once more
+	e.exec(`UPDATE withdrawals SET status='PROCESSING', needs_review=TRUE, tx_hash=NULL, processed_at=NULL WHERE id=$1`, id)
+	chain.Txs = nil
+	if n, err := at(11 * time.Minute).Reconcile(ctx); err != nil || n != 0 {
+		t.Fatalf("requeue: %d %v", n, err)
+	}
+	if st, review, _ := state(); st != "PENDING" || review {
+		t.Fatalf("requeued: %s review=%v", st, review)
+	}
+	sender.err = nil
+	sender.hash = "second-try"
+	_, _ = at(12 * time.Minute).RunPayouts(ctx, 5)
+	if st, _, tries := state(); st != "COMPLETED" || tries != 2 || len(sender.calls) != 2 {
+		t.Fatalf("second try: %s tries=%d calls=%d", st, tries, len(sender.calls))
+	}
+
+	// a second unclear result is final for the machine: it waits for a human, never a third transfer
+	e.exec(`UPDATE withdrawals SET status='PROCESSING', needs_review=TRUE, tx_hash=NULL, processed_at=NULL, payout_started_at=$2 WHERE id=$1`, id, e.now)
+	if n, err := at(30 * time.Minute).Reconcile(ctx); err != nil || n != 0 {
+		t.Fatalf("no third try: %d %v", n, err)
+	}
+	if st, review, tries := state(); st != "PROCESSING" || !review || tries != 2 {
+		t.Fatalf("after two tries a human decides: %s review=%v tries=%d", st, review, tries)
+	}
+	_, _ = at(31 * time.Minute).RunPayouts(ctx, 5)
+	if len(sender.calls) != 2 {
+		t.Fatalf("never a third transfer: %d", len(sender.calls))
+	}
+}
