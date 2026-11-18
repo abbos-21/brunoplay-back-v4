@@ -112,6 +112,7 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/admin/combo/patterns` | admin |
 | DELETE | `/api/admin/combo/patterns/{day}` | admin |
 | PUT | `/api/admin/combo/patterns/{day}` | admin |
+| POST | `/api/admin/combo/post-now` | admin |
 | GET | `/api/admin/dashboard` | admin |
 | GET | `/api/admin/games/guard` | admin |
 | GET | `/api/admin/gifts/catalog` | admin |

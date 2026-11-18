@@ -107,6 +107,11 @@ func (s *Service) pattern(ctx context.Context, tx db.Querier, day time.Time) ([]
 	return items, err
 }
 
+// TodayPattern is the secret combo of the current game day (created like the players' own read would create it).
+func (s *Service) TodayPattern(ctx context.Context) ([]int16, error) {
+	return s.pattern(ctx, s.pool, gameday.Of(s.now()))
+}
+
 // EnsureTodayPattern creates today's pattern if needed (worker, at the start of the game day).
 func (s *Service) EnsureTodayPattern(ctx context.Context) error {
 	_, err := s.pattern(ctx, s.pool, gameday.Of(s.now()))

@@ -45,6 +45,8 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 
 | Key | Type | Default | What it is |
 |---|---|---|---|
+| `ambassadors.channel` | string | `` | Ambassadors channel: @username or the numeric id (-100...). The bot must be an administrator who can post and pin messages |
+| `ambassadors.combo_enabled` | bool | `false` | Post the daily combo to the ambassadors channel when the game day starts (00:00 UTC) |
 | `combo.coins_per_correct` | int | **required** | Coins per correct combo picture |
 | `streak.rewards` | json | **required** | Streak reward coins for days 1..10 |
 

@@ -94,6 +94,8 @@ const (
 	KeyRouletteCost     = "roulette.cost_stars"
 	KeyRoulettePrizes   = "roulette.prizes"
 	KeyRoulettePublic   = "roulette.public"
+	KeyAmbassadorsOn    = "ambassadors.combo_enabled"
+	KeyAmbassadorsChat  = "ambassadors.channel"
 	KeyGifts            = "gifts"
 	KeyChestCost        = "chest.round_cost_stars"
 	KeyChestExpiryH     = "chest.round_expiry_hours"
@@ -339,6 +341,8 @@ func Registry() []Def {
 
 		arr(KeyStreakRewards, "daily", "Streak reward coins for days 1..10", nil),
 		i(KeyComboPerCorrect, "daily", "Coins per correct combo picture", nil, 0, big),
+		b(KeyAmbassadorsOn, "daily", "Post the daily combo to the ambassadors channel when the game day starts (00:00 UTC)", false),
+		s(KeyAmbassadorsChat, "daily", "Ambassadors channel: @username or the numeric id (-100...). The bot must be an administrator who can post and pin messages", ""),
 
 		arr(KeyTopupPacks, "topup", "Star packs [{stars}] shown in the top-up panel", nil),
 		fl(KeyTopupTGRatio, "topup", "Game stars per 1 Telegram Star", 1, 0.0001, 1000),

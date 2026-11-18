@@ -26,6 +26,14 @@ type FakeAPI struct {
 	mu        sync.Mutex
 	Messages  []Sent
 	ChatPosts []SentChat
+
+	// Photos are the pictures posted to channels; Pins/Unpins the pin calls ("chat:messageID")
+	Photos        []SentPhoto
+	Pins, Unpins  []string
+	nextMessageID int64
+	// FailPin makes pinning fail with this error (nil = it works)
+	FailPin error
+
 	// FailChat makes posts to channels fail with this error (nil = they work)
 	FailChat error
 	Edits     []Sent
@@ -63,6 +71,43 @@ func (f *FakeAPI) SendToChat(ctx context.Context, chat string, text string, o Se
 		return f.FailChat
 	}
 	f.ChatPosts = append(f.ChatPosts, SentChat{Chat: chat, Text: text, Buttons: o.Buttons})
+	return nil
+}
+
+// SentPhoto is one picture posted to a channel.
+type SentPhoto struct {
+	Chat    string
+	PNG     []byte
+	Caption string
+	Buttons [][]Button
+	ID      int64
+}
+
+func (f *FakeAPI) SendPhotoToChat(ctx context.Context, chat string, png []byte, caption string, o SendOpts) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.FailChat != nil {
+		return 0, f.FailChat
+	}
+	f.nextMessageID++
+	f.Photos = append(f.Photos, SentPhoto{Chat: chat, PNG: png, Caption: caption, Buttons: o.Buttons, ID: 1000 + f.nextMessageID})
+	return 1000 + f.nextMessageID, nil
+}
+
+func (f *FakeAPI) PinChatMessage(ctx context.Context, chat string, messageID int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.FailPin != nil {
+		return f.FailPin
+	}
+	f.Pins = append(f.Pins, fmt.Sprintf("%s:%d", chat, messageID))
+	return nil
+}
+
+func (f *FakeAPI) UnpinChatMessage(ctx context.Context, chat string, messageID int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Unpins = append(f.Unpins, fmt.Sprintf("%s:%d", chat, messageID))
 	return nil
 }
 

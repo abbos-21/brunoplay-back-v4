@@ -70,6 +70,7 @@ func (s *services) registerJobs(r *jobs.Runner) {
 		}
 		return d.Notify.PurgeJobMarks(ctx)
 	}})
+	r.Add(jobs.Job{Name: "combo-post", Every: time.Minute, Timeout: time.Minute, Run: d.ComboPost.Run})
 	r.Add(jobs.Job{Name: "tournaments-announce", Every: time.Minute, Run: func(ctx context.Context) error {
 		return d.AnnounceTournaments(ctx)
 	}})

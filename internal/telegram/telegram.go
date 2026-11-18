@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -112,6 +113,11 @@ type API interface {
 	SendMessage(ctx context.Context, chatID int64, text string, o SendOpts) error
 	// SendToChat posts to a channel or group named by "@username" or by its numeric id (as text)
 	SendToChat(ctx context.Context, chat string, text string, o SendOpts) error
+	// SendPhotoToChat posts an uploaded PNG with a caption (HTML) to a channel or group and returns the id of the new message
+	SendPhotoToChat(ctx context.Context, chat string, png []byte, caption string, o SendOpts) (int64, error)
+	// PinChatMessage pins a message of a channel without notifying anybody; UnpinChatMessage unpins one (the bot needs the right to pin)
+	PinChatMessage(ctx context.Context, chat string, messageID int64) error
+	UnpinChatMessage(ctx context.Context, chat string, messageID int64) error
 	EditMessage(ctx context.Context, chatID, messageID int64, text string, o SendOpts) error
 	CreateInvoiceLink(ctx context.Context, p InvoiceParams) (string, error)
 	AnswerPreCheckoutQuery(ctx context.Context, id string, ok bool, errMsg string) error
@@ -163,11 +169,15 @@ type apiResp struct {
 
 func (c *Client) call(ctx context.Context, method string, params any, out any) error {
 	body, _ := json.Marshal(params)
+	return c.post(ctx, method, "application/json", body, out)
+}
+
+func (c *Client) post(ctx context.Context, method, contentType string, body []byte, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/bot"+c.token+"/"+method, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 	res, err := c.http.Do(req)
 	if err != nil {
 		return err
@@ -244,6 +254,44 @@ func (c *Client) SendToChat(ctx context.Context, chat string, text string, o Sen
 		p["reply_markup"] = kb
 	}
 	return c.call(ctx, "sendMessage", p, nil)
+}
+
+// SendPhotoToChat uploads a PNG and posts it with the caption; it returns the id of the message.
+func (c *Client) SendPhotoToChat(ctx context.Context, chat string, png []byte, caption string, o SendOpts) (int64, error) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	_ = w.WriteField("chat_id", fmt.Sprint(chatArg(chat)))
+	_ = w.WriteField("caption", caption)
+	_ = w.WriteField("parse_mode", "HTML")
+	if kb := keyboard(o.Buttons); kb != nil {
+		raw, _ := json.Marshal(kb)
+		_ = w.WriteField("reply_markup", string(raw))
+	}
+	part, err := w.CreateFormFile("photo", "combo.png")
+	if err != nil {
+		return 0, err
+	}
+	if _, err := part.Write(png); err != nil {
+		return 0, err
+	}
+	if err := w.Close(); err != nil {
+		return 0, err
+	}
+	var sent struct {
+		MessageID int64 `json:"message_id"`
+	}
+	if err := c.post(ctx, "sendPhoto", w.FormDataContentType(), buf.Bytes(), &sent); err != nil {
+		return 0, err
+	}
+	return sent.MessageID, nil
+}
+
+func (c *Client) PinChatMessage(ctx context.Context, chat string, messageID int64) error {
+	return c.call(ctx, "pinChatMessage", map[string]any{"chat_id": chatArg(chat), "message_id": messageID, "disable_notification": true}, nil)
+}
+
+func (c *Client) UnpinChatMessage(ctx context.Context, chat string, messageID int64) error {
+	return c.call(ctx, "unpinChatMessage", map[string]any{"chat_id": chatArg(chat), "message_id": messageID}, nil)
 }
 
 func (c *Client) EditMessage(ctx context.Context, chatID, messageID int64, text string, o SendOpts) error {

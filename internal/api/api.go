@@ -14,6 +14,7 @@ import (
 	"brunoplay/internal/ads"
 	"brunoplay/internal/bot"
 	"brunoplay/internal/config"
+	"brunoplay/internal/combopost"
 	"brunoplay/internal/daily"
 	"brunoplay/internal/db"
 	"brunoplay/internal/fishing"
@@ -52,6 +53,7 @@ type Deps struct {
 	Fishing      *fishing.Service
 	Shop         *shop.Service
 	Daily        *daily.Service
+	ComboPost    *combopost.Service
 	Games        *games.Service
 	Notify       *notify.Service
 	Stats        *stats.Service
@@ -117,6 +119,10 @@ func NewDeps(cfg config.Config, pool *pgxpool.Pool) *Deps {
 	d.Games.Now = d.now
 	d.Daily = daily.New(pool, st, ps, d.Ads)
 	d.Daily.Now = d.now
+	// the daily combo goes to the ambassadors channel (a channel allows only link buttons: t.me/<bot>/<app> opens the Mini App)
+	d.ComboPost = combopost.New(pool, st, d.TG, d.Daily.TodayPattern, "https://t.me/"+cfg.BotUsername+"/"+cfg.BotAppName)
+	d.ComboPost.Now = d.now
+	d.ComboPost.Alert = d.Alert
 	d.Tasks = tasks.New(pool, st, ps, d.Ads, d.TG)
 	d.Tasks.Now = d.now
 	d.Referrals = referrals.New(pool, st, cfg.BotUsername, cfg.BotAppName)

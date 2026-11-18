@@ -279,6 +279,7 @@ func (d *Deps) socialAdminRoutes(r chi.Router) {
 	r.With(d.adminAuth("combo.read")).Get("/combo/patterns", httpx.Wrap(d.adminComboPatterns))
 	r.With(d.adminAuth("combo.write")).Put("/combo/patterns/{day}", httpx.Wrap(d.adminComboPatternSet))
 	r.With(d.adminAuth("combo.write")).Delete("/combo/patterns/{day}", httpx.Wrap(d.adminComboPatternDelete))
+	r.With(d.adminAuth("combo.write")).Post("/combo/post-now", httpx.Wrap(d.adminComboPostNow))
 }
 
 func (d *Deps) adminTasks(w http.ResponseWriter, r *http.Request) error {
@@ -423,6 +424,17 @@ func (d *Deps) adminComboPatternSet(w http.ResponseWriter, r *http.Request) erro
 	}
 	_ = admin.Audit(r.Context(), d.Pool, who, "combo.pattern", "combo_pattern", day.Format("2006-01-02"), nil, in)
 	httpx.JSON(w, 200, map[string]bool{"ok": true})
+	return nil
+}
+
+// adminComboPostNow posts today's combo to the ambassadors channel right away (a test, or a repeat of the daily post).
+func (d *Deps) adminComboPostNow(w http.ResponseWriter, r *http.Request) error {
+	res, err := d.ComboPost.PostNow(r.Context())
+	if err != nil {
+		return err
+	}
+	_ = admin.Audit(r.Context(), d.Pool, httpx.AdminFrom(r.Context()), "combo.post_now", "combo_post", fmt.Sprint(res.MessageID), nil, res)
+	httpx.JSON(w, 200, res)
 	return nil
 }
 
