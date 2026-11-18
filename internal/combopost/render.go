@@ -1,4 +1,4 @@
-// Package combopost posts the daily combo to the ambassadors Telegram channel: one picture of the four combo images in order,
+// Package combopost posts the daily combo to the ambassadors Telegram channel: one picture of the four combo images in order (as the game's combo row),
 // a caption in Russian and English, and an "open the game" button.
 package combopost
 
@@ -17,40 +17,69 @@ import (
 //go:embed art/*.png
 var artFS embed.FS
 
-const (
-	canvasW = 1080
-	canvasH = 380
-	tileSz  = 220
-	gapSz   = 30
-	artSz   = 200
+// the colours of the game's combo row, and nothing else: the page yellow, the cream cells and the brown dividers
+var (
+	pageYellow = color.RGBA{0xfb, 0xe1, 0x66, 0xff}
+	cellCream  = color.NRGBA{0xfd, 0xe7, 0xb8, 0xff}
+	divider    = color.NRGBA{0xcf, 0x87, 0x41, 0xff}
 )
 
-// Render draws the combo: the pictures in order on tiles, with small arrows between them, on the game's blue.
+const (
+	canvasW  = 1080
+	canvasH  = 340
+	cellW    = 240
+	cellH    = 220
+	artSz    = 170
+	radius   = 54
+	divW     = 3
+	insetPx  = 8 // the soft light on the top edge and shade on the bottom edge, as on the game's row
+	insetMax = 0.25
+)
+
+// Render draws the combo as the game shows it: one cream row with a brown border, the pictures in order and thin dividers between them,
+// on the page yellow.
 func Render(items []int16) ([]byte, error) {
 	n := len(items)
 	if n == 0 {
 		return nil, fmt.Errorf("combopost: no pictures")
 	}
 	img := image.NewRGBA(image.Rect(0, 0, canvasW, canvasH))
-	// the background: the blue of the game, a little lighter in the middle
-	for y := 0; y < canvasH; y++ {
-		for x := 0; x < canvasW; x++ {
-			dx, dy := float64(x-canvasW/2)/float64(canvasW/2), float64(y-canvasH/2)/float64(canvasH/2)
-			d := dx*dx*0.6 + dy*dy*0.4
-			if d > 1 {
-				d = 1
+	draw.Draw(img, img.Bounds(), &image.Uniform{pageYellow}, image.Point{}, draw.Src)
+
+	rowW := n * cellW
+	row := image.Rect((canvasW-rowW)/2, (canvasH-cellH)/2, (canvasW-rowW)/2+rowW, (canvasH-cellH)/2+cellH)
+	// the border (the brown of the dividers) is the outer rounded shape; the cream and its light and shade sit inside it
+	inner := image.Rect(row.Min.X+divW, row.Min.Y+divW, row.Max.X-divW, row.Max.Y-divW)
+	for y := row.Min.Y; y < row.Max.Y; y++ {
+		for x := row.Min.X; x < row.Max.X; x++ {
+			if outer := coverage(x-row.Min.X, y-row.Min.Y, row.Dx(), row.Dy(), radius); outer > 0 {
+				blend(img, x, y, divider, outer)
 			}
-			img.SetRGBA(x, y, color.RGBA{R: uint8(34 - 14*d), G: uint8(98 - 36*d), B: uint8(210 - 56*d), A: 255})
+			if !image.Pt(x, y).In(inner) {
+				continue
+			}
+			cov := coverage(x-inner.Min.X, y-inner.Min.Y, inner.Dx(), inner.Dy(), radius-divW)
+			if cov == 0 {
+				continue
+			}
+			blend(img, x, y, cellCream, cov)
+			if d := y - inner.Min.Y; d < insetPx {
+				blend(img, x, y, color.NRGBA{255, 255, 255, 255}, cov*insetMax*float64(insetPx-d)/insetPx)
+			}
+			if d := inner.Max.Y - 1 - y; d < insetPx {
+				blend(img, x, y, color.NRGBA{0, 0, 0, 255}, cov*insetMax*float64(insetPx-d)/insetPx)
+			}
 		}
 	}
-
-	total := n*tileSz + (n-1)*gapSz
-	x0 := (canvasW - total) / 2
-	y0 := (canvasH - tileSz) / 2
+	for i := 1; i < n; i++ {
+		x := row.Min.X + i*cellW - divW/2
+		for y := row.Min.Y; y < row.Max.Y; y++ {
+			for dx := 0; dx < divW; dx++ {
+				blend(img, x+dx, y, divider, 1)
+			}
+		}
+	}
 	for i, id := range items {
-		x := x0 + i*(tileSz+gapSz)
-		fillRound(img, image.Rect(x, y0+6, x+tileSz, y0+6+tileSz), 40, color.NRGBA{0, 0, 0, 60}) // a soft shadow
-		fillRound(img, image.Rect(x, y0, x+tileSz, y0+tileSz), 40, color.NRGBA{255, 255, 255, 46})
 		raw, err := artFS.ReadFile(fmt.Sprintf("art/%d.png", id))
 		if err != nil {
 			return nil, fmt.Errorf("combopost: no picture for id %d", id)
@@ -59,11 +88,9 @@ func Render(items []int16) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		ax, ay := x+(tileSz-artSz)/2, y0+(tileSz-artSz)/2
+		ax := row.Min.X + i*cellW + (cellW-artSz)/2
+		ay := row.Min.Y + (cellH-artSz)/2
 		draw.Draw(img, image.Rect(ax, ay, ax+artSz, ay+artSz), art, art.Bounds().Min, draw.Over)
-		if i < n-1 {
-			arrow(img, x+tileSz+gapSz/2, y0+tileSz/2)
-		}
 	}
 
 	var out bytes.Buffer
@@ -71,18 +98,6 @@ func Render(items []int16) ([]byte, error) {
 		return nil, err
 	}
 	return out.Bytes(), nil
-}
-
-// fillRound blends a rounded rectangle (anti-aliased by 3x3 sampling at the corners).
-func fillRound(dst *image.RGBA, r image.Rectangle, rad int, c color.NRGBA) {
-	for y := r.Min.Y; y < r.Max.Y; y++ {
-		for x := r.Min.X; x < r.Max.X; x++ {
-			cov := coverage(x-r.Min.X, y-r.Min.Y, r.Dx(), r.Dy(), rad)
-			if cov > 0 {
-				blend(dst, x, y, c, cov)
-			}
-		}
-	}
 }
 
 func coverage(x, y, w, h, rad int) float64 {
@@ -106,17 +121,6 @@ func coverage(x, y, w, h, rad int) float64 {
 		}
 	}
 	return float64(in) / 9
-}
-
-// arrow draws a small triangle pointing right, centred on (cx, cy).
-func arrow(dst *image.RGBA, cx, cy int) {
-	const hw, hh = 8, 13
-	for x := -hw; x <= hw; x++ {
-		half := hh * (hw - x) / (2 * hw) // tall at the left, a point at the right
-		for y := -half; y <= half; y++ {
-			blend(dst, cx+x, cy+y, color.NRGBA{255, 255, 255, 190}, 1)
-		}
-	}
 }
 
 func blend(dst *image.RGBA, x, y int, c color.NRGBA, cov float64) {
