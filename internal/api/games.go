@@ -70,17 +70,24 @@ func (d *Deps) spin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// rouletteAllowed: until the owner opens the Roulette to everybody (roulette.public) only the admin whose Telegram id is ALERT_CHAT_ID
-// in .env sees it; anybody else is told it does not exist.
+// rouletteAllowed: until the owner opens the Roulette to everybody (roulette.public) only players whose Telegram id belongs to an active
+// admin account (the Telegram id field on the Admins page) see it; anybody else is told it does not exist.
 func (d *Deps) rouletteAllowed(r *http.Request) error {
-	p := httpx.PlayerFrom(r.Context())
-	if d.Settings.BoolOr(r.Context(), settings.KeyRoulettePublic, false) {
+	ctx := r.Context()
+	if d.Settings.BoolOr(ctx, settings.KeyRoulettePublic, false) {
 		return nil
 	}
-	if d.Cfg.AlertChatID > 0 && p.TelegramID == d.Cfg.AlertChatID {
-		return nil
+	p := httpx.PlayerFrom(ctx)
+	var ok bool
+	if p.TelegramID > 0 {
+		if err := d.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM admins WHERE is_active AND telegram_id=$1)`, p.TelegramID).Scan(&ok); err != nil {
+			return err
+		}
 	}
-	return apperr.NotFound
+	if !ok {
+		return apperr.NotFound
+	}
+	return nil
 }
 
 func (d *Deps) rouletteInfo(w http.ResponseWriter, r *http.Request) error {

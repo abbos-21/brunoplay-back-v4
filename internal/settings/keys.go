@@ -369,7 +369,7 @@ func Registry() []Def {
 
 		arr(KeySpinTiers, "games", "Spin tiers [{tier,price_stars}]", nil),
 		arr(KeyGifts, "games", "Gifts [{key,name_en,name_ru,star_value}]", nil),
-		b(KeyRoulettePublic, "games", "Roulette: open to every player (false = only the admin whose Telegram id is ALERT_CHAT_ID in .env can see and play it; use that to test it in production before anybody else)", false),
+		b(KeyRoulettePublic, "games", "Roulette: open to every player (false = only players whose Telegram id is set on an active admin account (Admins page) can see and play it; use that to test it in production before anybody else)", false),
 		i(KeyRouletteCost, "games", "Roulette: the price of one spin (stars). Every spin wins one of the roulette.prizes. The expected payout per spin is the sum of (weight / total weight) x star value over the prizes (a coin counts for guard.coin_value_stars); keep it below this price, for example 90% of it", 15, 0, 1000000),
 		Def{Key: KeyRoulettePrizes, Kind: KJSON, Group: "games", Check: roulettePrizesCheck, Default: DefaultRoulettePrizes(),
 			Desc: "Roulette prizes [{type: gift|coins|stars, gift: gift key (type gift), value: coins or stars (type coins or stars), weight: relative chance}]. A gift is worth its star value from the gift catalogue. Weights are relative: a prize of weight 2 comes twice as often as one of weight 1"},

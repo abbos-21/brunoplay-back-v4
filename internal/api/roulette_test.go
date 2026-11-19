@@ -185,7 +185,7 @@ func TestRouletteDrawFollowsTheWeights(t *testing.T) {
 	}
 }
 
-// Until the owner opens it (roulette.public), only the admin whose Telegram id is ALERT_CHAT_ID can see or play the Roulette;
+// Until the owner opens it (roulette.public), only a player whose Telegram id is on an active admin account can see or play the Roulette;
 // for everybody else it does not exist, and a refused spin charges nothing.
 func TestRouletteIsOnlyForTheAdminUntilItIsOpened(t *testing.T) {
 	e := newEnv(t)
@@ -196,11 +196,17 @@ func TestRouletteIsOnlyForTheAdminUntilItIsOpened(t *testing.T) {
 	e.give(stranger, ledger.Star, 50)
 	e.give(admin, ledger.Star, 50)
 
-	// no admin id in .env: nobody
+	// no admin account carries that Telegram id: nobody
 	if r := e.do("GET", "/api/roulette", admin.Token, nil); r.Status != 404 {
 		t.Fatalf("without an admin id nobody sees it: %d", r.Status)
 	}
-	e.d.Cfg.AlertChatID = 711
+	e.adminLogin("roulette-admin@example.com", "support")
+	e.exec(`UPDATE admins SET telegram_id=711 WHERE email='roulette-admin@example.com'`)
+	e.exec(`UPDATE admins SET is_active=false WHERE email='roulette-admin@example.com'`)
+	if r := e.do("GET", "/api/roulette", admin.Token, nil); r.Status != 404 {
+		t.Fatalf("a deactivated admin does not count: %d", r.Status)
+	}
+	e.exec(`UPDATE admins SET is_active=true WHERE email='roulette-admin@example.com'`)
 	if r := e.do("GET", "/api/roulette", stranger.Token, nil); r.Status != 404 {
 		t.Fatalf("a stranger must not see it: %d %s", r.Status, r.Body)
 	}
