@@ -351,7 +351,21 @@ func (d *Deps) adminPlayer(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	httpx.JSON(w, 200, v)
+	// what the player has taken out in TON: paid out, and still on its way (waiting or being paid)
+	out := struct {
+		*adminPlayerView
+		WithdrawnNano  int64 `json:"withdrawnNano"`
+		WithdrawnCount int64 `json:"withdrawnCount"`
+		PendingNano    int64 `json:"pendingWithdrawalNano"`
+		PendingCount   int64 `json:"pendingWithdrawalCount"`
+	}{adminPlayerView: v}
+	if err := d.Pool.QueryRow(r.Context(), `SELECT
+			COALESCE(SUM(amount_nano) FILTER (WHERE status='COMPLETED'),0), COUNT(*) FILTER (WHERE status='COMPLETED'),
+			COALESCE(SUM(amount_nano) FILTER (WHERE status IN ('PENDING','PROCESSING')),0), COUNT(*) FILTER (WHERE status IN ('PENDING','PROCESSING'))
+		FROM withdrawals WHERE player_id=$1`, id).Scan(&out.WithdrawnNano, &out.WithdrawnCount, &out.PendingNano, &out.PendingCount); err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, out)
 	return nil
 }
 
