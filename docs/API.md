@@ -138,6 +138,7 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | PATCH | `/api/admin/players/{id}/flags` | admin |
 | PUT | `/api/admin/players/{id}/invite-bonus` | admin |
 | GET | `/api/admin/players/{id}/ledger` | admin |
+| POST | `/api/admin/players/{id}/message` | admin |
 | GET | `/api/admin/players/{id}/referrals` | admin |
 | POST | `/api/admin/players/{id}/reset` | admin |
 | POST | `/api/admin/players/{id}/risk/clear` | admin |

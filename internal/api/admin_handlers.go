@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"html"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +16,7 @@ import (
 	"brunoplay/internal/db"
 	"brunoplay/internal/httpx"
 	"brunoplay/internal/ledger"
+	"brunoplay/internal/telegram"
 )
 
 // ---- admin auth
@@ -452,6 +455,54 @@ func (d *Deps) adminPlayerReferrals(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 	httpx.JSON(w, 200, map[string]any{"referrals": out, "total": total, "counted": counted, "more": len(out) == limit && int64(len(out)) < total})
+	return nil
+}
+
+type playerMessageReq struct {
+	Text string `json:"text" validate:"required,max=3500"`
+}
+
+// adminPlayerMessage sends one plain-text message to one player through the bot, right now, and tells the admin how it went.
+func (d *Deps) adminPlayerMessage(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in playerMessageReq
+	if err := httpx.Decode(r, &in); err != nil {
+		return err
+	}
+	text := strings.TrimSpace(in.Text)
+	if text == "" {
+		return apperr.BadRequest.With("reason", "write a message first")
+	}
+	if d.TG == nil {
+		return apperr.ConfigMissing.With("key", "BOT_TOKEN")
+	}
+	var tg int64
+	var archived bool
+	if err := d.Pool.QueryRow(r.Context(), `SELECT telegram_id, deleted_at IS NOT NULL FROM players WHERE id=$1`, id).Scan(&tg, &archived); err != nil {
+		if db.IsNoRows(err) {
+			return apperr.NotFound
+		}
+		return err
+	}
+	if archived || tg <= 0 {
+		return apperr.AdminRefused.With("why", "This player's data was erased: there is nobody to write to.")
+	}
+	// the text is sent as typed: the bot's messages are HTML, so what looks like a tag must stay text
+	switch err := d.TG.SendMessage(r.Context(), tg, html.EscapeString(text), telegram.SendOpts{}); {
+	case err == nil:
+	case errors.Is(err, telegram.ErrBlocked):
+		_, _ = d.Pool.Exec(r.Context(), `UPDATE players SET bot_blocked=TRUE WHERE id=$1`, id)
+		return apperr.AdminRefused.With("why", "The player blocked the bot, so Telegram does not deliver the message.")
+	case errors.Is(err, telegram.ErrNotFound), errors.Is(err, telegram.ErrForbidden):
+		return apperr.AdminRefused.With("why", "Telegram cannot deliver it: the player has not started the bot yet.")
+	default:
+		return apperr.AdminRefused.With("why", "Telegram did not accept the message: "+err.Error())
+	}
+	_ = admin.Audit(r.Context(), d.Pool, httpx.AdminFrom(r.Context()), "player.message", "player", itoa(id), nil, map[string]any{"text": text})
+	httpx.JSON(w, 200, map[string]bool{"ok": true})
 	return nil
 }
 
