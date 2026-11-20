@@ -117,7 +117,11 @@ func (d *Deps) rouletteSpin(w http.ResponseWriter, r *http.Request) error {
 
 func (d *Deps) spinWinners(w http.ResponseWriter, r *http.Request) error {
 	page := int(queryInt(r, "page", 1))
-	list, total, err := d.Games.Winners(r.Context(), page, 20)
+	game := r.URL.Query().Get("game") // optional: only the wins of one game (spin, chest, roulette...)
+	if len(game) > 32 {
+		game = ""
+	}
+	list, total, err := d.Games.Winners(r.Context(), game, page, 20)
 	if err != nil {
 		return err
 	}

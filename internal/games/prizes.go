@@ -283,7 +283,8 @@ type Win struct {
 }
 
 // Winners returns the recent gift wins, newest first.
-func (s *Service) Winners(ctx context.Context, page, perPage int) ([]Win, int64, error) {
+// Winners lists the latest wins, newest first; game narrows them to one game ("" = all the games).
+func (s *Service) Winners(ctx context.Context, game string, page, perPage int) ([]Win, int64, error) {
 	if perPage <= 0 || perPage > 50 {
 		perPage = 20
 	}
@@ -291,11 +292,11 @@ func (s *Service) Winners(ctx context.Context, page, perPage int) ([]Win, int64,
 		page = 1
 	}
 	var total int64
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM winners_feed ORDER BY id DESC LIMIT 1000) x`).Scan(&total); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM winners_feed WHERE ($1='' OR game=$1) ORDER BY id DESC LIMIT 1000) x`, game).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, username, prize_type, prize_value, gift_key, game, spent_stars, created_at FROM winners_feed ORDER BY id DESC LIMIT $1 OFFSET $2`,
-		perPage, (page-1)*perPage)
+	rows, err := s.pool.Query(ctx, `SELECT id, username, prize_type, prize_value, gift_key, game, spent_stars, created_at FROM winners_feed WHERE ($3='' OR game=$3) ORDER BY id DESC LIMIT $1 OFFSET $2`,
+		perPage, (page-1)*perPage, game)
 	if err != nil {
 		return nil, 0, err
 	}
