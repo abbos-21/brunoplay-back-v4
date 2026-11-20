@@ -150,13 +150,14 @@ var (
 	ExtraLimit     = def("EXTRA_LIMIT_REACHED", http.StatusConflict, "No more extra attempts today", "Дополнительные попытки на сегодня закончились")
 
 	// games
-	ChestRoundOpen = def("CHEST_ROUND_OPEN", http.StatusConflict, "Finish your current chest round first", "Сначала завершите текущий раунд")
-	ChestNoRound   = def("CHEST_NO_ROUND", http.StatusConflict, "There is no active chest round", "Нет активного раунда сундуков")
-	RideRunInvalid = def("RIDE_RUN_INVALID", http.StatusConflict, "This run cannot be saved", "Этот заезд нельзя сохранить")
-	GiftNotOwned   = def("GIFT_NOT_AVAILABLE", http.StatusConflict, "This gift is not available", "Этот подарок недоступен")
-	AdminRefused   = def("ADMIN_ACTION_REFUSED", http.StatusConflict, "{why}", "{why}")            // an admin action that cannot be done now; the text says why
-	GiftCatalog    = def("GIFT_CATALOG_INVALID", http.StatusUnprocessableEntity, "{why}", "{why}") // an admin mistake; the text says what to fix
-	SpinInvalid    = def("SPIN_INVALID", http.StatusUnprocessableEntity, "Choose a valid spin", "Выберите допустимое вращение")
+	ChestRoundOpen  = def("CHEST_ROUND_OPEN", http.StatusConflict, "Finish your current chest round first", "Сначала завершите текущий раунд")
+	ChestNoRound    = def("CHEST_NO_ROUND", http.StatusConflict, "There is no active chest round", "Нет активного раунда сундуков")
+	RideRunInvalid  = def("RIDE_RUN_INVALID", http.StatusConflict, "This run cannot be saved", "Этот заезд нельзя сохранить")
+	GiftNotOwned    = def("GIFT_NOT_AVAILABLE", http.StatusConflict, "This gift is not available", "Этот подарок недоступен")
+	GiftNotSellable = def("GIFT_NOT_SELLABLE", http.StatusConflict, "A tournament prize cannot be sold: keep it in your collection or ask for the real gift", "Приз турнира нельзя продать: оставьте его в коллекции или запросите настоящий подарок")
+	AdminRefused    = def("ADMIN_ACTION_REFUSED", http.StatusConflict, "{why}", "{why}")            // an admin action that cannot be done now; the text says why
+	GiftCatalog     = def("GIFT_CATALOG_INVALID", http.StatusUnprocessableEntity, "{why}", "{why}") // an admin mistake; the text says what to fix
+	SpinInvalid     = def("SPIN_INVALID", http.StatusUnprocessableEntity, "Choose a valid spin", "Выберите допустимое вращение")
 
 	// tournaments
 	TournamentClosed = def("TOURNAMENT_NOT_OPEN", http.StatusConflict, "This tournament is not open", "Турнир недоступен")

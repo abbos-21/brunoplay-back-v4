@@ -94,15 +94,23 @@ func (s *Service) Collection(ctx context.Context, playerID int64, lang apperr.La
 	return out, rows.Err()
 }
 
-// SellGift turns an owned gift into stars at its full star value. A gift can be sold or claimed only once.
+// SourceTournament is the source of a gift won in a tournament: it can be kept or claimed, never sold for stars.
+const SourceTournament = "tournament"
+
+// SellGift turns an owned gift into stars at its full star value (not a tournament prize). A gift can be sold or claimed only once.
 func (s *Service) SellGift(ctx context.Context, playerID, giftID int64) (stars int64, balance int64, err error) {
 	err = db.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, e := s.players.Lock(ctx, tx, playerID); e != nil {
 			return e
 		}
 		var value int64
-		e := tx.QueryRow(ctx, `UPDATE player_gifts SET status='SOLD', sold_at=$3 WHERE id=$1 AND player_id=$2 AND status='OWNED' RETURNING star_value`, giftID, playerID, s.now()).Scan(&value)
+		e := tx.QueryRow(ctx, `UPDATE player_gifts SET status='SOLD', sold_at=$3 WHERE id=$1 AND player_id=$2 AND status='OWNED' AND source <> $4 RETURNING star_value`, giftID, playerID, s.now(), SourceTournament).Scan(&value)
 		if db.IsNoRows(e) {
+			// a tournament prize is only for the collection (or the real gift): say so instead of "not available"
+			var tournament bool
+			if tx.QueryRow(ctx, `SELECT true FROM player_gifts WHERE id=$1 AND player_id=$2 AND status='OWNED' AND source=$3`, giftID, playerID, SourceTournament).Scan(&tournament) == nil {
+				return apperr.GiftNotSellable
+			}
 			return apperr.GiftNotOwned
 		}
 		if e != nil {

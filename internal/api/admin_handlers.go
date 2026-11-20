@@ -408,6 +408,53 @@ func (d *Deps) adminPlayerLedger(w http.ResponseWriter, r *http.Request) error {
 	return rows.Err()
 }
 
+// adminPlayerReferrals lists the players this player invited, newest first; "before" is the id of the last one already shown.
+func (d *Deps) adminPlayerReferrals(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r, "id")
+	if err != nil {
+		return err
+	}
+	before := queryInt(r, "before", 0)
+	limit := int(queryInt(r, "limit", 20))
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	var total, counted int64
+	if err := d.Pool.QueryRow(r.Context(), `SELECT COUNT(*), COUNT(*) FILTER (WHERE referral_counted) FROM players WHERE referred_by=$1`, id).Scan(&total, &counted); err != nil {
+		return err
+	}
+	rows, err := d.Pool.Query(r.Context(), `SELECT id, username, first_name, last_name, level, referral_counted, is_blocked, deleted_at IS NOT NULL, created_at
+		FROM players WHERE referred_by=$1 AND ($2=0 OR id<$2) ORDER BY id DESC LIMIT $3`, id, before, limit)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	type row struct {
+		ID        int64     `json:"id"`
+		Username  string    `json:"username"`
+		FirstName string    `json:"firstName"`
+		LastName  string    `json:"lastName"`
+		Level     int       `json:"level"`
+		Counted   bool      `json:"counted"`
+		IsBlocked bool      `json:"isBlocked"`
+		Archived  bool      `json:"archived"`
+		CreatedAt time.Time `json:"createdAt"`
+	}
+	out := []row{}
+	for rows.Next() {
+		var x row
+		if err := rows.Scan(&x.ID, &x.Username, &x.FirstName, &x.LastName, &x.Level, &x.Counted, &x.IsBlocked, &x.Archived, &x.CreatedAt); err != nil {
+			return err
+		}
+		out = append(out, x)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, map[string]any{"referrals": out, "total": total, "counted": counted, "more": len(out) == limit && int64(len(out)) < total})
+	return nil
+}
+
 type blockReq struct {
 	Reason string `json:"reason" validate:"max=300"`
 }
