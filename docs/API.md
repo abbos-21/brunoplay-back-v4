@@ -136,6 +136,7 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | POST | `/api/admin/players/{id}/block` | admin |
 | POST | `/api/admin/players/{id}/delete` | admin |
 | PATCH | `/api/admin/players/{id}/flags` | admin |
+| GET | `/api/admin/players/{id}/games` | admin |
 | PUT | `/api/admin/players/{id}/invite-bonus` | admin |
 | GET | `/api/admin/players/{id}/ledger` | admin |
 | POST | `/api/admin/players/{id}/message` | admin |
