@@ -70,6 +70,8 @@ const (
 	KeyTopupTGBonus     = "topup.telegram.bonus_percent"
 	KeyTopupTonBonus    = "topup.ton.bonus_percent"
 	KeyTopupStarsPerTon = "topup.ton.stars_per_ton"
+	KeyTopupTonAuto     = "topup.ton.auto_price"
+	KeyTopupTonMargin   = "topup.ton.auto_margin_percent"
 	KeyTopupTonWallet   = "topup.ton.wallet_address"
 	KeyTopupTonConf     = "topup.ton.confirmations"
 	KeyTopupTonExpiry   = "topup.ton.order_expiry_minutes"
@@ -348,7 +350,9 @@ func Registry() []Def {
 		fl(KeyTopupTGRatio, "topup", "Game stars per 1 Telegram Star", 1, 0.0001, 1000),
 		fl(KeyTopupTGBonus, "topup", "Bonus % on Telegram Stars payments", 0, 0, 1000),
 		fl(KeyTopupTonBonus, "topup", "Bonus % on TON payments (shown on the TON tab)", 0, 0, 1000),
-		fl(KeyTopupStarsPerTon, "topup", "Game stars per 1 TON", nil, 0.0001, big),
+		fl(KeyTopupStarsPerTon, "topup", "Game stars per 1 TON (the fixed rate; with the automatic price on, it is only the fallback while Fragment's price is not available)", nil, 0.0001, big),
+		b(KeyTopupTonAuto, "topup", "Automatic TON price: price every pack (stars + its bonus) at Fragment's live TON price plus the margin below. Needs FRAGMENT_API_KEY in the server .env", false),
+		fl(KeyTopupTonMargin, "topup", "Automatic TON price: margin % added on top of Fragment's price", 5, 0, 100),
 		s(KeyTopupTonWallet, "topup", "Project TON wallet that receives top-ups", nil),
 		i(KeyTopupTonConf, "topup", "Seconds a TON transfer must be old before it is credited (extra safety)", 10, 0, 3600),
 		i(KeyTopupTonExpiry, "topup", "Minutes a TON payment order stays open", 30, 5, 1440),

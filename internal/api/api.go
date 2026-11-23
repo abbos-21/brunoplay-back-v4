@@ -33,6 +33,7 @@ import (
 	"brunoplay/internal/tasks"
 	"brunoplay/internal/telegram"
 	"brunoplay/internal/token"
+	"brunoplay/internal/fragment"
 	"brunoplay/internal/ton"
 	"brunoplay/internal/topup"
 	"brunoplay/internal/tournaments"
@@ -115,6 +116,9 @@ func NewDeps(cfg config.Config, pool *pgxpool.Pool) *Deps {
 	d.Topup = topup.New(pool, st, ps, d.TG, d.Chain)
 	d.Topup.Now = d.now
 	d.Topup.Alert = d.Alert
+	if cfg.FragmentKey != "" {
+		d.Topup.Quoter = fragment.New(cfg.FragmentURL, cfg.FragmentKey)
+	}
 	d.Games = games.New(pool, st, ps, d.Ads)
 	d.Games.Now = d.now
 	d.Daily = daily.New(pool, st, ps, d.Ads)

@@ -48,6 +48,9 @@ type Service struct {
 	tg       telegram.API
 	chain    ton.Chain
 	Now      func() time.Time
+	// Quoter gives Fragment's live TON price of stars (nil = the fixed rate only)
+	Quoter Quoter
+	qs     quoteState
 
 	OnPaid     []func(ctx context.Context, tx pgx.Tx, ev PaidEvent) error
 	OnRefunded []func(ctx context.Context, tx pgx.Tx, playerID int64, orderID string, stars int64) error
@@ -155,12 +158,19 @@ func (s *Service) Packs(ctx context.Context) (*PacksView, error) {
 	tonB, _ := s.settings.Float(ctx, settings.KeyTopupTonBonus)
 	spt, sptErr := s.settings.Float(ctx, settings.KeyTopupStarsPerTon)
 	wallet, werr := s.settings.Str(ctx, settings.KeyTopupTonWallet)
-	out := &PacksView{TonBonusPercent: tonB, TgBonusPercent: tgB, TgAvailable: ratio > 0, TonAvailable: sptErr == nil && werr == nil && wallet != ""}
+	if sptErr != nil {
+		spt = 0
+	}
+	out := &PacksView{TonBonusPercent: tonB, TgBonusPercent: tgB, TgAvailable: ratio > 0, TonAvailable: werr == nil && wallet != ""}
 	for _, p := range ps {
 		v := PackView{Stars: p.Stars, TelegramStars: tgPrice(p.Stars, ratio), TgBonusStars: bonusOf(p.Stars, tgB), TonBonusStars: bonusOf(p.Stars, tonB)}
 		if out.TonAvailable {
-			v.TonNano = tonPrice(p.Stars, spt)
-			v.Ton = ton.TonString(v.TonNano)
+			v.TonNano, _ = s.tonPriceFor(ctx, p.Stars, tonB, spt)
+			if v.TonNano <= 0 {
+				out.TonAvailable = false // a pack without a price: the TON tab is not offered
+			} else {
+				v.Ton = ton.TonString(v.TonNano)
+			}
 		}
 		out.Packs = append(out.Packs, v)
 	}
@@ -248,9 +258,9 @@ func (s *Service) CreateTonOrder(ctx context.Context, playerID, packStars int64)
 	if err := s.validPack(ctx, packStars); err != nil {
 		return nil, err
 	}
-	spt, err := s.settings.Float(ctx, settings.KeyTopupStarsPerTon)
-	if err != nil {
-		return nil, err
+	spt, sptErr := s.settings.Float(ctx, settings.KeyTopupStarsPerTon)
+	if sptErr != nil {
+		spt = 0
 	}
 	wallet, err := s.settings.Str(ctx, settings.KeyTopupTonWallet)
 	if err != nil {
@@ -267,8 +277,12 @@ func (s *Service) CreateTonOrder(ctx context.Context, playerID, packStars int64)
 	now := s.now()
 	id := newID()
 	comment := commentPrefix + id
-	price := tonPrice(packStars, spt)
+	// the price is fixed in the order now: the live price (stars + bonus at Fragment's price plus the margin) or the manual rate
+	price, _ := s.tonPriceFor(ctx, packStars, pct, spt)
 	if price <= 0 {
+		if sptErr != nil {
+			return nil, sptErr
+		}
 		return nil, apperr.TopupPackInvalid
 	}
 	payload, err := ton.CommentPayloadBase64(comment)

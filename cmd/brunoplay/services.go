@@ -95,6 +95,8 @@ func (s *services) registerJobs(r *jobs.Runner) {
 		return err
 	}})
 	r.Add(jobs.Job{Name: "topup-expire", Every: time.Minute, Run: s.deps.Topup.ExpireOrders})
+	// the live TON price of the packs (only when "Automatic TON price" is on and FRAGMENT_API_KEY is set)
+	r.Add(jobs.Job{Name: "ton-quotes", Every: 5 * time.Minute, Timeout: 2 * time.Minute, Run: s.deps.Topup.RefreshQuotes})
 	r.Add(jobs.Job{Name: "payouts", Every: 20 * time.Second, Timeout: 5 * time.Minute, Run: func(ctx context.Context) error {
 		_, err := s.deps.Withdrawals.RunPayouts(ctx, 20)
 		return err

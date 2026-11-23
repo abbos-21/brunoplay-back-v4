@@ -33,6 +33,8 @@ type Config struct {
 
 	TonAPIURL     string
 	TonAPIKey     string
+	FragmentURL   string // fragment-api.uz: the live TON price of stars
+	FragmentKey   string
 	TonWallet     string // project wallet that receives top-ups
 	PayoutSeed    string // hot wallet secret (only if AutoPayout)
 	PayoutWalletV string // v4r2 | v5r1
@@ -67,6 +69,8 @@ func Load() (Config, error) {
 		AutoPayout:     getBool("AUTO_PAYOUT", false),
 		TonAPIURL:      get("TON_API_URL", "https://toncenter.com/api/v2"),
 		TonAPIKey:      get("TON_API_KEY", ""),
+		FragmentURL:    get("FRAGMENT_API_URL", "https://fragment-api.uz"),
+		FragmentKey:    get("FRAGMENT_API_KEY", ""),
 		TonWallet:      get("TON_WALLET", ""),
 		PayoutSeed:     get("PAYOUT_WALLET_SEED", ""),
 		PayoutWalletV:  get("PAYOUT_WALLET_VERSION", "v4r2"),

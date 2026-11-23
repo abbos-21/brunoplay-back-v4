@@ -89,6 +89,7 @@ nano deploy/.env
 | `DEV_AUTH` | `false` (the server refuses to start if it is on in production) |
 | `AUTO_PAYOUT` | `true` sends payouts up to 0.075 TON by itself (needs `PAYOUT_WALLET_SEED`, step 3b). Start with `false` and pay by hand while you test, then switch on |
 | `TON_API_KEY` | a free key from toncenter (the bot @tonapibot) so the top-up watcher is not rate limited |
+| `FRAGMENT_API_KEY` | optional: the key of your project at fragment-api.uz. With it and "Automatic TON price" on in admin Settings, the TON price of every star pack follows Fragment's live price (stars + bonus) plus your margin. The server's IP must be allowed in that project |
 | `ALERT_CHAT_ID` | your own chat id with the bot (send it `/start`, then ask @userinfobot for your id). You get alerts about payouts, errors and ledger mismatches |
 
 **3b. Automatic payouts (the payout wallet).** The rules pay requests up to 0.075 TON by themselves from a separate "hot" wallet.

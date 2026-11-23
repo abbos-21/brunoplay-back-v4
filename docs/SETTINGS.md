@@ -156,10 +156,12 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `topup.packs` | json | **required** | Star packs [{stars}] shown in the top-up panel |
 | `topup.telegram.bonus_percent` | float | `0` | Bonus % on Telegram Stars payments |
 | `topup.telegram.ratio` | float | `1` | Game stars per 1 Telegram Star |
+| `topup.ton.auto_margin_percent` | float | `5` | Automatic TON price: margin % added on top of Fragment's price |
+| `topup.ton.auto_price` | bool | `false` | Automatic TON price: price every pack (stars + its bonus) at Fragment's live TON price plus the margin below. Needs FRAGMENT_API_KEY in the server .env |
 | `topup.ton.bonus_percent` | float | `0` | Bonus % on TON payments (shown on the TON tab) |
 | `topup.ton.confirmations` | int | `10` | Seconds a TON transfer must be old before it is credited (extra safety) |
 | `topup.ton.order_expiry_minutes` | int | `30` | Minutes a TON payment order stays open |
-| `topup.ton.stars_per_ton` | float | **required** | Game stars per 1 TON |
+| `topup.ton.stars_per_ton` | float | **required** | Game stars per 1 TON (the fixed rate; with the automatic price on, it is only the fallback while Fragment's price is not available) |
 | `topup.ton.wallet_address` | string | **required** | Project TON wallet that receives top-ups |
 
 ## withdrawal

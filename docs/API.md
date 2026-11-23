@@ -159,6 +159,8 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/admin/topup/orders` | admin |
 | POST | `/api/admin/topup/orders/{id}/credit` | admin |
 | POST | `/api/admin/topup/orders/{id}/refund` | admin |
+| GET | `/api/admin/topup/ton-quotes` | admin |
+| POST | `/api/admin/topup/ton-quotes/refresh` | admin |
 | GET | `/api/admin/tournaments` | admin |
 | POST | `/api/admin/tournaments` | admin |
 | PUT | `/api/admin/tournaments/{id}` | admin |

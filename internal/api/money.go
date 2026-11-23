@@ -14,6 +14,7 @@ import (
 	"brunoplay/internal/admin"
 	"brunoplay/internal/apperr"
 	"brunoplay/internal/httpx"
+	"brunoplay/internal/settings"
 	"brunoplay/internal/telegram"
 )
 
@@ -204,6 +205,8 @@ func (d *Deps) moneyAdminRoutes(r chi.Router) {
 	r.With(d.adminAuth("payments.read")).Get("/topup/orders", httpx.Wrap(d.adminTopupOrders))
 	r.With(d.adminAuth("payments.write")).Post("/topup/orders/{id}/credit", httpx.Wrap(d.adminTopupCredit))
 	r.With(d.adminAuth("payments.write")).Post("/topup/orders/{id}/refund", httpx.Wrap(d.adminTopupRefund))
+	r.With(d.adminAuth("payments.read")).Get("/topup/ton-quotes", httpx.Wrap(d.adminTonQuotes))
+	r.With(d.adminAuth("payments.write")).Post("/topup/ton-quotes/refresh", httpx.Wrap(d.adminTonQuotesRefresh))
 }
 
 func (d *Deps) adminWdList(w http.ResponseWriter, r *http.Request) error {
@@ -288,6 +291,37 @@ func (d *Deps) adminWdReject(w http.ResponseWriter, r *http.Request) error {
 	_ = admin.Audit(r.Context(), d.Pool, who, "withdrawal.reject", "withdrawal", itoa(id), nil, in)
 	httpx.JSON(w, 200, wd)
 	return nil
+}
+
+// adminTonQuotes shows the live TON price of every pack (stars + bonus at Fragment's price, with the margin).
+func (d *Deps) adminTonQuotes(w http.ResponseWriter, r *http.Request) error {
+	q, err := d.Topup.Quotes(r.Context())
+	if err != nil {
+		return err
+	}
+	margin, _ := d.Settings.Float(r.Context(), settings.KeyTopupTonMargin)
+	httpx.JSON(w, 200, map[string]any{
+		"auto":   d.Settings.BoolOr(r.Context(), settings.KeyTopupTonAuto, false),
+		"keySet": d.Topup.Quoter != nil,
+		"margin": margin,
+		"quotes": q,
+		"maxAge": 30,
+	})
+	return nil
+}
+
+// adminTonQuotesRefresh asks Fragment for the prices right now (to check the key and the server's IP), and says why when it fails.
+func (d *Deps) adminTonQuotesRefresh(w http.ResponseWriter, r *http.Request) error {
+	if d.Topup.Quoter == nil {
+		return apperr.AdminRefused.With("why", "FRAGMENT_API_KEY is not set in the server .env.")
+	}
+	if !d.Settings.BoolOr(r.Context(), settings.KeyTopupTonAuto, false) {
+		return apperr.AdminRefused.With("why", "Turn on 'Automatic TON price' in Settings (Top-up group) first.")
+	}
+	if err := d.Topup.RefreshQuotes(r.Context()); err != nil {
+		return apperr.AdminRefused.With("why", "Fragment did not give a price: "+err.Error())
+	}
+	return d.adminTonQuotes(w, r)
 }
 
 func (d *Deps) adminTopupOrders(w http.ResponseWriter, r *http.Request) error {
