@@ -16,7 +16,7 @@ const (
 
 // Requirement is an extra condition of a card level (besides the price).
 type Requirement struct {
-	Type   string `json:"type"` // invite_friends | player_level | other_card_level | task_done
+	Type   string `json:"type"` // invite_friends | player_level | other_card_level | task_done | collect_tank | ride_finish
 	Value  int64  `json:"value"`
 	DescEN string `json:"desc_en"`
 	DescRU string `json:"desc_ru"`

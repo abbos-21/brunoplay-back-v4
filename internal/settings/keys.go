@@ -207,7 +207,7 @@ func cardsCheck(raw json.RawMessage) error {
 		}
 		for _, r := range l.Requirements {
 			switch r.Type {
-			case "invite_friends", "player_level", "other_card_level", "task_done":
+			case "invite_friends", "player_level", "other_card_level", "task_done", "collect_tank", "ride_finish":
 			default:
 				return errors.New("unknown requirement type " + r.Type)
 			}
@@ -333,8 +333,8 @@ func Registry() []Def {
 		i(KeyAdsMonetagTaskInterval, "ads", "Monetag popup task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),
 
 		i(KeyCollectMinPct, "fishing", "Minimum tank fill (%) needed to collect", 10, 0, 100),
-		cards(KeyCardsMining, "fishing", "Mining-rate card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10", nil),
-		cards(KeyCardsCapacity, "fishing", "Coin-capacity card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10", nil),
+		cards(KeyCardsMining, "fishing", "Mining-rate card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10. Requirement types: invite_friends, player_level, other_card_level, task_done, collect_tank (collect the tank value times) and ride_finish (finish value Bruno's Ride runs); the last two count only what the player does after reaching the level before this one", nil),
+		cards(KeyCardsCapacity, "fishing", "Coin-capacity card: [{level,value,cost,currency:COIN|STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10. Requirement types: invite_friends, player_level, other_card_level, task_done, collect_tank (collect the tank value times) and ride_finish (finish value Bruno's Ride runs); the last two count only what the player does after reaching the level before this one", nil),
 		i(KeyBoosterDays, "boosters", "Booster duration in days", 30, 1, 3650),
 		fl(KeyBoosterMulti, "boosters", "Mining speed multiplier of the speed booster", 1.5, 1, 100),
 		i(KeyBoosterAutoCost, "boosters", "Autocollect price (stars)", nil, 0, big),

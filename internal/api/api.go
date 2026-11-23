@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"brunoplay/internal/admin"
@@ -134,6 +135,16 @@ func NewDeps(cfg config.Config, pool *pgxpool.Pool) *Deps {
 	// friends: a friend counts at level 2, the inviter earns on level-ups and on the friend's collects
 	d.Shop.OnLevelUp = append(d.Shop.OnLevelUp, d.Referrals.OnLevelUp)
 	d.Fishing.OnCollected = append(d.Fishing.OnCollected, d.Referrals.OnCollected)
+	// card requirements that count what the player does: a collection of the tank that brought coins, a finished Bruno's Ride run
+	d.Fishing.OnCollected = append(d.Fishing.OnCollected, func(ctx context.Context, tx pgx.Tx, ev fishing.CollectEvent) error {
+		if ev.Coins <= 0 {
+			return nil
+		}
+		return d.Shop.Record(ctx, tx, ev.PlayerID, shop.ReqCollectTank)
+	})
+	d.Games.OnRide = append(d.Games.OnRide, func(ctx context.Context, tx pgx.Tx, playerID, score, coins int64) error {
+		return d.Shop.Record(ctx, tx, playerID, shop.ReqRideFinish)
+	})
 	// ... and on a friend's Telegram Stars top-up (and its refund), with no level needed
 	d.Topup.OnPaid = append(d.Topup.OnPaid, d.Referrals.OnTopupPaid)
 	d.Topup.OnRefunded = append(d.Topup.OnRefunded, d.Referrals.OnTopupRefunded)

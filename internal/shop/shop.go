@@ -69,6 +69,7 @@ type ReqView struct {
 	RequirementType  string `json:"requirementType"`
 	RequirementValue string `json:"requirementValue"`
 	Met              bool   `json:"met"`
+	Progress         int64  `json:"progress"` // for the counting requirements: how much is done (never above the target)
 }
 
 type CardInfo struct {
@@ -130,6 +131,16 @@ func requirementText(r gamecfg.Requirement, lang apperr.Lang) string {
 			return "Выполните задание"
 		}
 		return "Complete the task"
+	case ReqCollectTank:
+		if ru {
+			return fmt.Sprintf("Соберите бак %d раз", r.Value)
+		}
+		return fmt.Sprintf("Collect the tank %d times", r.Value)
+	case ReqRideFinish:
+		if ru {
+			return fmt.Sprintf("Завершите заездов в Bruno's Ride: %d", r.Value)
+		}
+		return fmt.Sprintf("Finish %d rides in Bruno's Ride", r.Value)
 	}
 	return r.Type
 }
@@ -140,8 +151,19 @@ func (s *Service) evalReqs(ctx context.Context, q db.Querier, p *players.Player,
 	for _, r := range reqs {
 		var met bool
 		var err error
+		var progress int64
+		desc := requirementText(r, p.Lang())
 		if r.Type == "other_card_level" {
 			met = int64(cardLevel(p, otherCard(card))) >= r.Value
+		} else if isCounterReq(r.Type) {
+			// what the player did since this level became their next one: 3 of 10 collections
+			progress, err = s.counterProgress(ctx, q, p.ID, card, cardLevel(p, card)+1, r.Type)
+			if err != nil {
+				return nil, false, err
+			}
+			progress = min(progress, r.Value)
+			met = progress >= r.Value
+			desc = fmt.Sprintf("%s (%d/%d)", desc, progress, r.Value)
 		} else if ev, ok := s.Evaluators[r.Type]; ok {
 			met, err = ev(ctx, q, p, r.Value)
 			if err != nil {
@@ -151,7 +173,7 @@ func (s *Service) evalReqs(ctx context.Context, q db.Querier, p *players.Player,
 		if !met {
 			all = false
 		}
-		out = append(out, ReqView{Description: requirementText(r, p.Lang()), RequirementType: r.Type, RequirementValue: fmt.Sprint(r.Value), Met: met})
+		out = append(out, ReqView{Description: desc, RequirementType: r.Type, RequirementValue: fmt.Sprint(r.Value), Met: met, Progress: progress})
 	}
 	return out, all, nil
 }
@@ -245,6 +267,9 @@ func (s *Service) Upgrade(ctx context.Context, playerID int64, card string) (*Up
 			col = "mining_level"
 		}
 		if _, err := tx.Exec(ctx, `UPDATE players SET `+col+`=$2 WHERE id=$1`, playerID, next.Level); err != nil {
+			return err
+		}
+		if err := s.startCounting(ctx, tx, playerID, card, next.Level); err != nil {
 			return err
 		}
 		p, err = s.players.Get(ctx, tx, playerID)

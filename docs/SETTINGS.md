@@ -54,8 +54,8 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 
 | Key | Type | Default | What it is |
 |---|---|---|---|
-| `cards.capacity.levels` | json | **required** | Coin-capacity card: [{level,value,cost,currency:COIN/STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10 |
-| `cards.mining.levels` | json | **required** | Mining-rate card: [{level,value,cost,currency:COIN/STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10 |
+| `cards.capacity.levels` | json | **required** | Coin-capacity card: [{level,value,cost,currency:COIN/STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10. Requirement types: invite_friends, player_level, other_card_level, task_done, collect_tank (collect the tank value times) and ride_finish (finish value Bruno's Ride runs); the last two count only what the player does after reaching the level before this one |
+| `cards.mining.levels` | json | **required** | Mining-rate card: [{level,value,cost,currency:COIN/STAR,requirements:[{type,value,desc_en,desc_ru}]}] for levels 1..10. Requirement types: invite_friends, player_level, other_card_level, task_done, collect_tank (collect the tank value times) and ride_finish (finish value Bruno's Ride runs); the last two count only what the player does after reaching the level before this one |
 | `fishing.collect_min_percent` | int | `10` | Minimum tank fill (%) needed to collect |
 
 ## friends
