@@ -12,6 +12,7 @@ Access: **public** needs nothing; **player** needs `Authorization: Bearer <playe
 | GET | `/api/ads/bonus` | player |
 | POST | `/api/ads/bonus/claim` | player |
 | GET | `/api/ads/config` | player |
+| POST | `/api/ads/done` | player |
 | POST | `/api/ads/failed` | player |
 | POST | `/api/ads/interstitial/report` | player |
 | POST | `/api/ads/popup-task/claim` | player |

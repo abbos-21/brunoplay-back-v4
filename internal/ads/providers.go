@@ -40,6 +40,9 @@ type ProviderRef struct {
 	ID       string `json:"id"`
 	BlockID  string `json:"blockId,omitempty"`  // Adsgram
 	ZoneID   string `json:"zoneId,omitempty"`   // Monetag (the app also uses the proof id as the ymid of the ad)
+	// ProjectID and Placement: GigaPub. It gives the server no notice, so the app reports the finished ad itself (POST /ads/done).
+	ProjectID string `json:"projectId,omitempty"`
+	Placement string `json:"placement,omitempty"`
 	Debug    bool   `json:"debug,omitempty"`
 	// WaitSeconds: the provider reports an ad when it STARTS, not when it ends. The server accepts the proof this many seconds after
 	// the report, and the app waits as long before it goes on.
@@ -109,7 +112,26 @@ var providers = []providerDef{
 			return []Webhook{{Label: "Postback URL (Monetag → the app's Postback page)", URL: u + "/api/webhooks/monetag?secret=YOUR_SECRET&ymid={ymid}&zone_id={zone_id}&event_type={event_type}&reward_event_type={reward_event_type}&telegram_id={telegram_id}", Note: "YOUR_SECRET is ADSGRAM_WEBHOOK_SECRET from the server's .env (the same secret is used). Type the secret yourself, never share it."}}
 		},
 	},
+	{
+		// GigaPub (mediation). Its docs tell of no server-to-server notice for rewarded ads, only the promise of window.showGiga(): the app
+		// reports the finished ad (POST /api/ads/done) and the server accepts it only after the least time an ad takes.
+		ID: "gigapub", Name: "GigaPub", Formats: []Format{FormatRewarded},
+		Fields: []Field{
+			{Key: settings.KeyAdsGigaProject, Label: "App id", Help: "The number of the app in the GigaPub partner dashboard (Telegram Apps, the ID column), for example 9390.", Kind: "string"},
+			{Key: settings.KeyAdsGigaPlacement, Label: "Placement", Help: "The placement name from the dashboard (for example main). Empty: the first placement of the app.", Kind: "string"},
+			{Key: settings.KeyAdsGigaMin, Label: "Least seconds an ad takes", Kind: "number", Min: 0, Max: 120,
+				Help: "GigaPub sends our server no notice, so the app says the ad is finished. The server refuses that report when it comes sooner than this after the ad was requested (it stops a player who only calls the server). Put a little less than the shortest GigaPub ad."},
+		},
+		Ref: func(ctx context.Context, s *Service, placement string) (ProviderRef, bool) {
+			id := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsGigaProject, ""))
+			pl := strings.TrimSpace(s.settings.StrOr(ctx, settings.KeyAdsGigaPlacement, ""))
+			wait, _ := s.settings.Int(ctx, settings.KeyAdsGigaMin)
+			return ProviderRef{ID: "gigapub", ProjectID: id, Placement: pl, WaitSeconds: int(wait)}, widgetRe.MatchString(id)
+		},
+	},
 }
+
+var gigaPlacementRe = regexp.MustCompile(`^[A-Za-z0-9_-]{0,40}$`)
 
 var widgetRe = regexp.MustCompile(`^[0-9]{1,12}$`)
 
@@ -267,6 +289,8 @@ func providerHint(id string) string {
 		return "enter the Adsgram block ids in Settings → ads.block_ids."
 	case "monetag":
 		return "enter the main zone id below."
+	case "gigapub":
+		return "enter the app id below."
 	}
 	return "fill in its settings."
 }
@@ -304,8 +328,11 @@ func (s *Service) SaveProviders(ctx context.Context, list []Entry, fields map[st
 			if !isStr {
 				return apperr.AdminRefused.With("why", f.Label+" must be text")
 			}
-			if k == settings.KeyAdsMonetagZone && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
+			if (k == settings.KeyAdsMonetagZone || k == settings.KeyAdsGigaProject) && str != "" && !widgetRe.MatchString(strings.TrimSpace(str)) {
 				return apperr.AdminRefused.With("why", f.Label+" is a number (for example 12144526)")
+			}
+			if k == settings.KeyAdsGigaPlacement && !gigaPlacementRe.MatchString(strings.TrimSpace(str)) {
+				return apperr.AdminRefused.With("why", f.Label+" is a short name of letters and digits (for example main)")
 			}
 			fields[k] = strings.TrimSpace(str)
 		}

@@ -49,6 +49,9 @@ const (
 	KeyAdsMonetagTask         = "ads.monetag.task_enabled"
 	KeyAdsMonetagTaskCoins    = "ads.monetag.task_coins"
 	KeyAdsMonetagTaskInterval = "ads.monetag.task_interval_minutes"
+	KeyAdsGigaProject         = "ads.gigapub.project_id"
+	KeyAdsGigaPlacement       = "ads.gigapub.placement"
+	KeyAdsGigaMin             = "ads.gigapub.min_seconds"
 
 	// fishing, cards, boosters, levels
 	KeyCollectMinPct   = "fishing.collect_min_percent"
@@ -325,9 +328,12 @@ func Registry() []Def {
 		i(KeyAdsTaskCoins, "ads", "Coins for one completed sponsored task", 2000, 1, big),
 		i(KeyAdsTaskInterval, "ads", "Sponsored task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),
 		arr(KeyAdsProviders, "ads", "Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page)",
-			[]map[string]any{{"id": "adsgram", "enabled": true}, {"id": "monetag", "enabled": false}}),
+			[]map[string]any{{"id": "adsgram", "enabled": true}, {"id": "monetag", "enabled": false}, {"id": "gigapub", "enabled": false}}),
 		s(KeyAdsMonetagZone, "ads", "Monetag main zone id (a number from the Monetag dashboard)", ""),
 		i(KeyAdsMonetagWait, "ads", "Monetag: seconds after Monetag reports the ad before the action may go ahead (it reports when the ad starts, so set the ad's length)", 10, 0, 120),
+		s(KeyAdsGigaProject, "ads", "GigaPub app id (a number from the GigaPub partner dashboard, Telegram Apps)", ""),
+		s(KeyAdsGigaPlacement, "ads", "GigaPub placement name (empty = the first placement of the app, usually main)", ""),
+		i(KeyAdsGigaMin, "ads", "GigaPub: the least seconds an ad takes; the server refuses the report of a finished ad that came sooner (GigaPub gives no server notice)", 10, 0, 120),
 		b(KeyAdsMonetagTask, "ads", "Monetag popup task (Rewarded Popup: opens a partner offer) on the Tasks screen", false),
 		i(KeyAdsMonetagTaskCoins, "ads", "Coins for one completed Monetag popup task", 1000, 1, big),
 		i(KeyAdsMonetagTaskInterval, "ads", "Monetag popup task: minutes between two paid tasks of one player (480 = 3 a day)", 480, 1, 10080),

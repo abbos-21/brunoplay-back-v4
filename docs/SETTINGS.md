@@ -12,6 +12,9 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.bonus.max_per_day` | int | **required** | Bonus ads per player per day |
 | `ads.combo_extra.max_per_day` | int | **required** | Extra combo attempts (ad) per player per day |
 | `ads.fallback_minutes` | int | `10` | Minutes the no-ad window lasts after a fallback |
+| `ads.gigapub.min_seconds` | int | `10` | GigaPub: the least seconds an ad takes; the server refuses the report of a finished ad that came sooner (GigaPub gives no server notice) |
+| `ads.gigapub.placement` | string | `` | GigaPub placement name (empty = the first placement of the app, usually main) |
+| `ads.gigapub.project_id` | string | `` | GigaPub app id (a number from the GigaPub partner dashboard, Telegram Apps) |
 | `ads.interstitial.block_id` | string | `` | Adsgram block id of the Interstitial block (digits) |
 | `ads.interstitial.enabled` | bool | `false` | Interstitial ads (full screen, the player can close them) between games |
 | `ads.interstitial.first_after_seconds` | int | `120` | Interstitial: no ad in the first seconds after the app is opened |
@@ -23,7 +26,7 @@ Every value the owner supplies or changes in the admin panel (`PUT /api/admin/se
 | `ads.monetag.wait_seconds` | int | `10` | Monetag: seconds after Monetag reports the ad before the action may go ahead (it reports when the ad starts, so set the ad's length) |
 | `ads.monetag.zone_id` | string | `` | Monetag main zone id (a number from the Monetag dashboard) |
 | `ads.placements_enabled` | json | `map[BONUS_COINS:true COLLECT:true COMBO_EXTRA:true DOUBLE_COMBO:true DOUBLE_STREAK:true FISHING_START:true RIDE_FREE:true TASK_ADS:true]` | Placement switches |
-| `ads.providers` | json | `[map[enabled:true id:adsgram] map[enabled:false id:monetag]]` | Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page) |
+| `ads.providers` | json | `[map[enabled:true id:adsgram] map[enabled:false id:monetag] map[enabled:false id:gigapub]]` | Ad providers: the order is the priority, each can be switched on or off (managed on the Ads page) |
 | `ads.required` | bool | `true` | Ads are required for fishing start and collect (keep ON in production) |
 | `ads.ride_free.max_per_day` | int | **required** | Free Ride runs (ad) per player per day |
 | `ads.task.block_id` | string | `` | Adsgram block id of the Task block (task-123) |

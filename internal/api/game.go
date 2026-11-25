@@ -23,6 +23,7 @@ func (d *Deps) coreRoutes(r chi.Router) {
 		r.Get("/levels", httpx.Wrap(d.levels))
 		r.Post("/ads", httpx.Wrap(d.adsRequest))
 		r.Post("/ads/failed", httpx.Wrap(d.adsFailed))
+		r.Post("/ads/done", httpx.Wrap(d.adsDone))
 
 		// money-moving: per-player limit and Idempotency-Key support
 		r.Group(func(r chi.Router) {
@@ -157,6 +158,24 @@ func (d *Deps) checkAdPlacement(r *http.Request, playerID int64, placement strin
 		return apperr.AdDisabled
 	}
 	return d.placementGuards(r, playerID, placement)
+}
+
+// adsDone is the report of a finished ad from a provider that sends the server no notice (GigaPub). The proof becomes COMPLETED only when
+// it is the player's own, still open, offered that provider and the least time an ad takes has passed.
+func (d *Deps) adsDone(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		AdViewID string `json:"adViewId" validate:"required,max=64"`
+		Provider string `json:"provider" validate:"required,max=32"`
+	}
+	if err := httpx.Decode(r, &in); err != nil {
+		return err
+	}
+	ok, err := d.Ads.CompleteReported(r.Context(), httpx.PlayerFrom(r.Context()).ID, in.AdViewID, in.Provider)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, 200, map[string]any{"ok": ok})
+	return nil
 }
 
 func (d *Deps) adsFailed(w http.ResponseWriter, r *http.Request) error {

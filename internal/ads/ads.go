@@ -206,6 +206,31 @@ func (s *Service) CompleteView(ctx context.Context, viewID string, telegramID in
 	return err == nil, err
 }
 
+// CompleteReported is for a provider that gives the server no notice (GigaPub): the player's own app says the ad is finished. The proof must
+// be the player's, still open, offer this provider, and the report must come at least the provider's "least seconds" after it was requested.
+// It returns false when something is not right (the app then treats the ad as failed).
+func (s *Service) CompleteReported(ctx context.Context, playerID int64, viewID, provider string) (bool, error) {
+	if provider != "gigapub" {
+		return false, nil
+	}
+	least, _ := s.settings.Int(ctx, settings.KeyAdsGigaMin)
+	now := s.now()
+	err := db.WithTx(ctx, s.pool, func(tx pgxTx) error {
+		var id string
+		if err := tx.QueryRow(ctx, `UPDATE ad_views SET status='COMPLETED', completed_at=$3 WHERE id=$1 AND player_id=$2
+			AND status='PENDING' AND expires_at > $3 AND created_at <= $3::timestamptz - $5::bigint * interval '1 second'
+			AND $4 = ANY(string_to_array(providers, ',')) RETURNING id`, viewID, playerID, now, provider, least).Scan(&id); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `DELETE FROM ad_failures WHERE player_id=$1`, playerID)
+		return err
+	})
+	if db.IsNoRows(err) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 func (s *Service) complete(ctx context.Context, telegramID int64, blockID, provider string) (bool, error) {
 	now := s.now()
 	var playerID int64

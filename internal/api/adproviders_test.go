@@ -48,16 +48,16 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 	}
 
 	// only the super admin edits it, and the lists are validated
-	if r := save(help, map[string]any{"providers": []map[string]any{pr("monetag", true), pr("adsgram", true)}}); r.Status != 403 {
+	if r := save(help, map[string]any{"providers": []map[string]any{pr("monetag", true), pr("adsgram", true), pr("gigapub", false)}}); r.Status != 403 {
 		t.Fatalf("support: %d %s", r.Status, r.Body)
 	}
 	for name, body := range map[string]map[string]any{
-		"unknown":   {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true), pr("nope", true)}},
-		"duplicate": {"providers": []map[string]any{pr("adsgram", true), pr("adsgram", true), pr("monetag", true)}},
-		"missing":   {"providers": []map[string]any{pr("adsgram", true)}},
-		"zone":      {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true)}, "fields": map[string]any{settings.KeyAdsMonetagZone: "abc"}},
-		"field":     {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true)}, "fields": map[string]any{"ads.required": false}},
-		"retired":   {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true), pr("t"+"ads", true)}}, // a provider that was removed
+		"unknown":   {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true), pr("nope", true), pr("gigapub", false)}},
+		"duplicate": {"providers": []map[string]any{pr("adsgram", true), pr("adsgram", true), pr("monetag", true), pr("gigapub", false)}},
+		"missing":   {"providers": []map[string]any{pr("adsgram", true), pr("gigapub", false)}},
+		"zone":      {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true), pr("gigapub", false)}, "fields": map[string]any{settings.KeyAdsMonetagZone: "abc"}},
+		"field":     {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true), pr("gigapub", false)}, "fields": map[string]any{"ads.required": false}},
+		"retired":   {"providers": []map[string]any{pr("adsgram", true), pr("monetag", true), pr("t"+"ads", true), pr("gigapub", false)}}, // a provider that was removed
 	} {
 		if r := save(boss, body); r.Code(t) != "ADMIN_ACTION_REFUSED" {
 			t.Fatalf("%s: %d %s", name, r.Status, r.Body)
@@ -65,7 +65,7 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 	}
 
 	// Monetag on but without a zone id: still not offered
-	if r := save(boss, map[string]any{"providers": []map[string]any{pr("monetag", true), pr("adsgram", true)}}); r.Status != 200 {
+	if r := save(boss, map[string]any{"providers": []map[string]any{pr("monetag", true), pr("adsgram", true), pr("gigapub", false)}}); r.Status != 200 {
 		t.Fatalf("save: %d %s", r.Status, r.Body)
 	}
 	view = e.do("POST", "/api/ads", p.Token, map[string]any{"placement": "FISHING_START"}).JSON(t)
@@ -74,7 +74,7 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 	}
 
 	// Monetag first, with a zone: the app asks Monetag, then Adsgram
-	if r := save(boss, map[string]any{"providers": []map[string]any{pr("monetag", true), pr("adsgram", true)}, "fields": zone}); r.Status != 200 {
+	if r := save(boss, map[string]any{"providers": []map[string]any{pr("monetag", true), pr("adsgram", true), pr("gigapub", false)}, "fields": zone}); r.Status != 200 {
 		t.Fatalf("save: %d %s", r.Status, r.Body)
 	}
 	view = e.do("POST", "/api/ads", p.Token, map[string]any{"placement": "FISHING_START"}).JSON(t)
@@ -86,7 +86,7 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 	}
 
 	// Adsgram's callback cannot complete a proof that offered only Monetag
-	save(boss, map[string]any{"providers": []map[string]any{pr("adsgram", false), pr("monetag", true)}})
+	save(boss, map[string]any{"providers": []map[string]any{pr("adsgram", false), pr("monetag", true), pr("gigapub", false)}})
 	v3 := e.do("POST", "/api/ads", p.Token, map[string]any{"placement": "COLLECT"}).JSON(t)
 	if ids := providerIDs(t, v3); !eq(ids, []string{"monetag"}) || v3["blockId"] != "" {
 		t.Fatalf("adsgram off: %v", v3)
@@ -105,14 +105,14 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 	if cfg["task"].(map[string]any)["enabled"] != false {
 		t.Fatalf("adsgram off: %v", cfg)
 	}
-	save(boss, map[string]any{"providers": []map[string]any{pr("adsgram", true), pr("monetag", true)}})
+	save(boss, map[string]any{"providers": []map[string]any{pr("adsgram", true), pr("monetag", true), pr("gigapub", false)}})
 	cfg = e.do("GET", "/api/ads/config", p.Token, nil).JSON(t)
 	if cfg["interstitial"].(map[string]any)["enabled"] != true || cfg["task"].(map[string]any)["enabled"] != true {
 		t.Fatalf("adsgram on: %v", cfg)
 	}
 
 	// every provider off while ads are required: CONFIG_MISSING instead of a silent free pass
-	save(boss, map[string]any{"providers": []map[string]any{pr("adsgram", false), pr("monetag", false)}})
+	save(boss, map[string]any{"providers": []map[string]any{pr("adsgram", false), pr("monetag", false), pr("gigapub", false)}})
 	if r := e.do("POST", "/api/ads", p.Token, map[string]any{"placement": "COLLECT"}); r.Code(t) != "CONFIG_MISSING" {
 		t.Fatalf("all off: %d %s", r.Status, r.Body)
 	}
@@ -124,7 +124,7 @@ func TestAdProvidersPriorityAndSwitches(t *testing.T) {
 
 	// the admin page shows the providers in order, with what is missing
 	pv := e.do("GET", "/api/admin/ads/providers", boss, nil).JSON(t)
-	if ids := providerIDs(t, pv); !eq(ids, []string{"adsgram", "monetag"}) {
+	if ids := providerIDs(t, pv); !eq(ids, []string{"adsgram", "monetag", "gigapub"}) {
 		t.Fatalf("admin view: %v", pv)
 	}
 }
@@ -138,7 +138,7 @@ func TestMonetagPostbackCompletesTheExactProof(t *testing.T) {
 	save := func(body map[string]any) resp { return e.do("PUT", "/api/admin/ads/providers", boss, body) }
 	pr := func(id string, on bool) map[string]any { return map[string]any{"id": id, "enabled": on} }
 	all := func(adsgram, monetag bool) []map[string]any {
-		return []map[string]any{pr("monetag", monetag), pr("adsgram", adsgram)}
+		return []map[string]any{pr("monetag", monetag), pr("adsgram", adsgram), pr("gigapub", false)}
 	}
 
 	// a zone id must be a number
@@ -242,32 +242,118 @@ func TestInterstitialChainFollowsProvidersAndSwitches(t *testing.T) {
 	zone := map[string]any{settings.KeyAdsMonetagZone: "12144526"}
 
 	// Adsgram alone (Monetag has no zone yet): as before
-	save([]map[string]any{pr("adsgram", true), pr("monetag", true)}, nil)
+	save([]map[string]any{pr("adsgram", true), pr("monetag", true), pr("gigapub", false)}, nil)
 	if c := inter(); c["enabled"] != true || !eq(ids(c), []string{"adsgram"}) || c["blockId"] != "int-1" {
 		t.Fatalf("adsgram only: %v", c)
 	}
 	// both: in the priority order, Monetag as the backup
-	save([]map[string]any{pr("adsgram", true), pr("monetag", true)}, zone)
+	save([]map[string]any{pr("adsgram", true), pr("monetag", true), pr("gigapub", false)}, zone)
 	if c := inter(); !eq(ids(c), []string{"adsgram", "monetag"}) {
 		t.Fatalf("both: %v", c)
 	}
-	save([]map[string]any{pr("monetag", true), pr("adsgram", true)}, nil)
+	save([]map[string]any{pr("monetag", true), pr("adsgram", true), pr("gigapub", false)}, nil)
 	if c := inter(); !eq(ids(c), []string{"monetag", "adsgram"}) {
 		t.Fatalf("monetag first: %v", c)
 	}
 	// Adsgram off: Monetag alone still serves interstitials (the old app sees no block and shows none)
-	save([]map[string]any{pr("adsgram", false), pr("monetag", true)}, nil)
+	save([]map[string]any{pr("adsgram", false), pr("monetag", true), pr("gigapub", false)}, nil)
 	if c := inter(); c["enabled"] != true || !eq(ids(c), []string{"monetag"}) || c["blockId"] != "int-1" {
 		t.Fatalf("monetag only: %v", c)
 	}
 	// Monetag off too, or the interstitial switch off: nothing
-	save([]map[string]any{pr("adsgram", false), pr("monetag", false)}, nil)
+	save([]map[string]any{pr("adsgram", false), pr("monetag", false), pr("gigapub", false)}, nil)
 	if c := inter(); c["enabled"] != false || len(ids(c)) != 0 {
 		t.Fatalf("all off: %v", c)
 	}
-	save([]map[string]any{pr("adsgram", true), pr("monetag", true)}, nil)
+	save([]map[string]any{pr("adsgram", true), pr("monetag", true), pr("gigapub", false)}, nil)
 	e.setSetting(settings.KeyAdsInterEnabled, false)
 	if c := inter(); c["enabled"] != false {
 		t.Fatalf("switch off: %v", c)
+	}
+}
+
+func TestGigaPubReportedAdCompletesTheProofAfterTheLeastTime(t *testing.T) {
+	e := newEnv(t)
+	e.gameConfig()
+	boss := e.adminLogin("boss@example.com", admin.RoleSuper)
+	p := e.login(7201, "en", "")
+	other := e.login(7202, "en", "")
+	pr := func(id string, on bool) map[string]any { return map[string]any{"id": id, "enabled": on} }
+	save := func(fields map[string]any) resp {
+		return e.do("PUT", "/api/admin/ads/providers", boss, map[string]any{"providers": []map[string]any{pr("gigapub", true), pr("adsgram", true), pr("monetag", false)}, "fields": fields})
+	}
+	ad := func(tok string) map[string]any {
+		return e.do("POST", "/api/ads", tok, map[string]any{"placement": "FISHING_START"}).JSON(t)
+	}
+	done := func(tok, id, provider string) any {
+		return e.do("POST", "/api/ads/done", tok, map[string]any{"adViewId": id, "provider": provider}).JSON(t)["ok"]
+	}
+
+	// the app id is a number, the placement a short name
+	for name, f := range map[string]map[string]any{
+		"id":        {settings.KeyAdsGigaProject: "abc"},
+		"placement": {settings.KeyAdsGigaPlacement: "bad name!"},
+	} {
+		if r := save(f); r.Code(t) != "ADMIN_ACTION_REFUSED" {
+			t.Fatalf("%s: %d %s", name, r.Status, r.Body)
+		}
+	}
+	// on without an app id: not offered
+	if r := save(map[string]any{}); r.Status != 200 {
+		t.Fatalf("save: %d %s", r.Status, r.Body)
+	}
+	if ids := providerIDs(t, ad(p.Token)); !eq(ids, []string{"adsgram"}) {
+		t.Fatalf("no app id: %v", ids)
+	}
+	// set up: first in the list, with what the app needs
+	if r := save(map[string]any{settings.KeyAdsGigaProject: "9390", settings.KeyAdsGigaPlacement: "main", settings.KeyAdsGigaMin: 10}); r.Status != 200 {
+		t.Fatalf("save: %d %s", r.Status, r.Body)
+	}
+	view := ad(p.Token)
+	if ids := providerIDs(t, view); !eq(ids, []string{"gigapub", "adsgram"}) {
+		t.Fatalf("chain: %v", ids)
+	}
+	if first := view["providers"].([]any)[0].(map[string]any); first["projectId"] != "9390" || first["placement"] != "main" {
+		t.Fatalf("ref: %v", first)
+	}
+	id := view["adViewId"].(string)
+	start := func(tok string) resp { return e.do("POST", "/api/fishing/start", tok, map[string]any{"adViewId": id}) }
+
+	// not finished: refused; reported too early: refused; somebody else's report, another provider's name: refused
+	if r := start(p.Token); r.Code(t) != "AD_NOT_COMPLETED" {
+		t.Fatalf("before: %d %s", r.Status, r.Body)
+	}
+	e.now = e.now.Add(3 * time.Second)
+	if done(p.Token, id, "gigapub") != false {
+		t.Fatal("a report after 3 seconds must be refused")
+	}
+	e.now = e.now.Add(8 * time.Second)
+	if done(other.Token, id, "gigapub") != false {
+		t.Fatal("another player's proof must be refused")
+	}
+	if done(p.Token, id, "adsgram") != false || done(p.Token, id, "nope") != false {
+		t.Fatal("only GigaPub reports by itself")
+	}
+	if r := start(p.Token); r.Code(t) != "AD_NOT_COMPLETED" {
+		t.Fatalf("refused reports must not complete it: %d %s", r.Status, r.Body)
+	}
+	// the real one, once
+	if done(p.Token, id, "gigapub") != true {
+		t.Fatal("a report after the least time must be accepted")
+	}
+	if done(p.Token, id, "gigapub") != false {
+		t.Fatal("the same proof cannot be completed twice")
+	}
+	if r := start(p.Token); r.Status != 200 {
+		t.Fatalf("start after gigapub: %d %s", r.Status, r.Body)
+	}
+
+	// a proof that did not offer GigaPub (switched off) cannot be completed by the report
+	save(map[string]any{})
+	e.do("PUT", "/api/admin/ads/providers", boss, map[string]any{"providers": []map[string]any{pr("gigapub", false), pr("adsgram", true), pr("monetag", false)}})
+	v2 := ad(other.Token)
+	e.now = e.now.Add(30 * time.Second)
+	if done(other.Token, v2["adViewId"].(string), "gigapub") != false {
+		t.Fatal("a proof that did not offer GigaPub must stay open")
 	}
 }
