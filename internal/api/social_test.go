@@ -778,3 +778,35 @@ func TestReferralThroughBotLinkFirst(t *testing.T) {
 		t.Fatalf("pending rows %d", n)
 	}
 }
+
+func TestTasksStartTheBot(t *testing.T) {
+	e := newEnv(t)
+	e.gameConfig()
+	content := e.adminLogin("content@example.com", admin.RoleContent)
+	p := e.login(430, "en", "")
+
+	if r := e.do("POST", "/api/admin/tasks", content, taskBody("BOT_START", nil)); r.Status != 422 {
+		t.Fatalf("a start-the-bot task needs the link of the bot: %d %s", r.Status, r.Body)
+	}
+	id := e.task(content, taskBody("BOT_START", map[string]any{"url": "https://t.me/bruno_play_bot?start=task", "rewardCoins": 100}))
+	check := func() map[string]any {
+		r := e.do("POST", fmt.Sprintf("/api/tasks/%d/check", id), p.Token, nil)
+		if r.Status != 200 {
+			t.Fatalf("check: %d %s", r.Status, r.Body)
+		}
+		return r.JSON(t)
+	}
+	// the player only opened the Mini App: not done, nothing paid
+	if c := check(); c["completed"] != false || c["error"] != "TASK_NOT_COMPLETED" || e.coins(p) != 0 {
+		t.Fatalf("not started: %v coins=%d", c, e.coins(p))
+	}
+	// the bot's webhook saw /start
+	e.exec(`UPDATE players SET bot_started=TRUE WHERE id=$1`, p.ID)
+	if c := check(); c["completed"] != true || c["reward"].(float64) != 100 || e.coins(p) != 100 {
+		t.Fatalf("started: %v coins=%d", c, e.coins(p))
+	}
+	// paid once
+	if r := e.do("POST", fmt.Sprintf("/api/tasks/%d/check", id), p.Token, nil); r.Code(t) != "TASK_ALREADY_COMPLETED" || e.coins(p) != 100 {
+		t.Fatalf("again: %s", r.Body)
+	}
+}

@@ -26,6 +26,7 @@ const (
 	TypeInvite  = "INVITE_FRIENDS"
 	TypeLink    = "OPEN_LINK"
 	TypeAds     = "WATCH_ADS"
+	TypeBot     = "BOT_START" // the player pressed Start in the bot (players.bot_started, set by the bot's webhook)
 )
 
 type Service struct {
@@ -304,6 +305,17 @@ func (s *Service) Check(ctx context.Context, p *players.Player, taskID int64) (*
 			return notDone()
 		}
 		prog = t.Required
+	case TypeBot:
+		// the bot's webhook sets bot_started when the player presses Start (also known from the bot's own user list)
+		var started bool
+		if err := s.pool.QueryRow(ctx, `SELECT p.bot_started OR EXISTS (SELECT 1 FROM bot_users b WHERE b.telegram_id = p.telegram_id)
+			FROM players p WHERE p.id=$1`, p.ID).Scan(&started); err != nil {
+			return nil, err
+		}
+		if !started {
+			return notDone()
+		}
+		prog = t.Required
 	case TypeAds:
 		res.Progress = prog
 		if prog < t.Required {
@@ -412,7 +424,7 @@ func (s *Service) Done(ctx context.Context, q db.Querier, playerID, taskID int64
 
 type Input struct {
 	Category    string     `json:"category" validate:"required,oneof=MAIN OTHER"`
-	Type        string     `json:"type" validate:"required,oneof=CHANNEL_JOIN CHANNEL_BOOST INVITE_FRIENDS OPEN_LINK WATCH_ADS"`
+	Type        string     `json:"type" validate:"required,oneof=CHANNEL_JOIN CHANNEL_BOOST INVITE_FRIENDS OPEN_LINK WATCH_ADS BOT_START"`
 	TitleEN     string     `json:"titleEn" validate:"required,max=200"`
 	TitleRU     string     `json:"titleRu" validate:"required,max=200"`
 	DescEN      string     `json:"descEn" validate:"max=500"`
@@ -436,7 +448,7 @@ func (in *Input) check() error {
 	if (in.Type == TypeChannel || in.Type == TypeBoost) && in.Channel == "" {
 		return apperr.Validation.With("field", "channelUsername")
 	}
-	if in.Type == TypeLink && in.URL == "" {
+	if (in.Type == TypeLink || in.Type == TypeBot) && in.URL == "" {
 		return apperr.Validation.With("field", "url")
 	}
 	if in.RewardCoins == 0 && in.RewardStars == 0 {
