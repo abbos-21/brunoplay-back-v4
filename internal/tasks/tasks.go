@@ -161,9 +161,21 @@ func (s *Service) List(ctx context.Context, p *players.Player) ([]TaskView, int,
 		key, start := period(t.Repeat, now)
 		var prog int
 		var done bool
-		err := s.pool.QueryRow(ctx, `SELECT progress, completed FROM task_progress WHERE player_id=$1 AND task_id=$2 AND period_key=$3`, p.ID, t.ID, key).Scan(&prog, &done)
+		var opened *time.Time
+		err := s.pool.QueryRow(ctx, `SELECT progress, completed, opened_at FROM task_progress WHERE player_id=$1 AND task_id=$2 AND period_key=$3`, p.ID, t.ID, key).Scan(&prog, &done, &opened)
 		if err != nil && !db.IsNoRows(err) {
 			return nil, 0, err
+		}
+		// "Start the bot" is of no use to a player who has already started it: it is not shown (unless they opened it from the task, so
+		// they can still claim it after pressing Start, or have done it already)
+		if t.Type == TypeBot && !done && opened == nil {
+			started, err := s.botStarted(ctx, p.ID)
+			if err != nil {
+				return nil, 0, err
+			}
+			if started {
+				continue
+			}
 		}
 		if t.Type == TypeInvite && !done {
 			if n, err := s.inviteCount(ctx, s.pool, p.ID, start); err == nil {
@@ -183,6 +195,14 @@ func (s *Service) List(ctx context.Context, p *players.Player) ([]TaskView, int,
 		out = append(out, v)
 	}
 	return out, newCount, nil
+}
+
+// botStarted: the player pressed Start in the bot (the webhook's flag, or the bot's own user list).
+func (s *Service) botStarted(ctx context.Context, playerID int64) (bool, error) {
+	var started bool
+	err := s.pool.QueryRow(ctx, `SELECT p.bot_started OR EXISTS (SELECT 1 FROM bot_users b WHERE b.telegram_id = p.telegram_id)
+		FROM players p WHERE p.id=$1`, playerID).Scan(&started)
+	return started, err
 }
 
 // MarkSeen records that the player looked at the list (clears the "NEW" tags and the badge).
@@ -307,9 +327,8 @@ func (s *Service) Check(ctx context.Context, p *players.Player, taskID int64) (*
 		prog = t.Required
 	case TypeBot:
 		// the bot's webhook sets bot_started when the player presses Start (also known from the bot's own user list)
-		var started bool
-		if err := s.pool.QueryRow(ctx, `SELECT p.bot_started OR EXISTS (SELECT 1 FROM bot_users b WHERE b.telegram_id = p.telegram_id)
-			FROM players p WHERE p.id=$1`, p.ID).Scan(&started); err != nil {
+		started, err := s.botStarted(ctx, p.ID)
+		if err != nil {
 			return nil, err
 		}
 		if !started {

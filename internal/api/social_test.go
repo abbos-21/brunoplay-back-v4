@@ -810,3 +810,41 @@ func TestTasksStartTheBot(t *testing.T) {
 		t.Fatalf("again: %s", r.Body)
 	}
 }
+
+func TestTasksStartTheBotIsHiddenFromThoseWhoStarted(t *testing.T) {
+	e := newEnv(t)
+	e.gameConfig()
+	content := e.adminLogin("content@example.com", admin.RoleContent)
+	id := e.task(content, taskBody("BOT_START", map[string]any{"url": "https://t.me/bruno_play_bot?start=task", "rewardCoins": 100}))
+	listed := func(tok string) bool {
+		l := e.do("GET", "/api/tasks", tok, nil).JSON(t)
+		for _, x := range l["tasks"].([]any) {
+			if int(x.(map[string]any)["id"].(float64)) == id {
+				return true
+			}
+		}
+		return false
+	}
+	already := e.login(440, "en", "")
+	e.exec(`UPDATE players SET bot_started=TRUE WHERE id=$1`, already.ID)
+	fresh := e.login(441, "en", "")
+
+	if listed(already.Token) {
+		t.Fatal("a player who started the bot must not see the task")
+	}
+	if !listed(fresh.Token) {
+		t.Fatal("a player who has not started the bot must see it")
+	}
+	// the new player taps Open, presses Start in the bot: the task stays until they claim it
+	e.do("POST", fmt.Sprintf("/api/tasks/%d/open", id), fresh.Token, nil)
+	e.exec(`UPDATE players SET bot_started=TRUE WHERE id=$1`, fresh.ID)
+	if !listed(fresh.Token) {
+		t.Fatal("it must stay for the player who opened it, to claim it")
+	}
+	if r := e.do("POST", fmt.Sprintf("/api/tasks/%d/check", id), fresh.Token, nil).JSON(t); r["completed"] != true || e.coins(fresh) != 100 {
+		t.Fatalf("claim: %v", r)
+	}
+	if !listed(fresh.Token) {
+		t.Fatal("a done task stays in the list as completed")
+	}
+}
