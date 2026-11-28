@@ -105,6 +105,14 @@ func TestTournamentJoinFeeAndWindow(t *testing.T) {
 	if len(l) != 1 || l[0].(map[string]any)["status"] != "ENDED" || l[0].(map[string]any)["name"] != "Cup STARS_SPENT" {
 		t.Fatalf("%v", l)
 	}
+	// a gift prize says what it is worth in stars; a prize without a gift does not
+	prizes := l[0].(map[string]any)["prizes"].([]any)
+	if v, _ := prizes[0].(map[string]any)["giftStars"].(float64); v <= 0 {
+		t.Fatalf("gift worth: %v", prizes)
+	}
+	if _, ok := prizes[1].(map[string]any)["giftStars"]; ok {
+		t.Fatalf("no gift, no worth: %v", prizes)
+	}
 }
 
 func TestTournamentMetricsCountOnlyAfterJoiningAndInsideTheWindow(t *testing.T) {

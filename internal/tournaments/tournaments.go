@@ -34,6 +34,8 @@ type Prize struct {
 	Coins int64  `json:"coins" validate:"gte=0"`
 	Stars int64  `json:"stars" validate:"gte=0"`
 	Gift  string `json:"gift" validate:"max=40"`
+	// GiftStars is what the gift is worth in stars (today's gift catalogue). Filled for the player's list only, never stored.
+	GiftStars int64 `json:"giftStars,omitempty"`
 }
 
 type Service struct {
@@ -136,8 +138,15 @@ func (s *Service) List(ctx context.Context, p *players.Player) ([]Tournament, er
 		ids = append(ids, t)
 	}
 	rows.Close()
+	_, gifts, err := s.games.Gifts(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]Tournament, 0, len(ids))
 	for _, t := range ids {
+		for i := range t.Prizes {
+			t.Prizes[i].GiftStars = gifts[t.Prizes[i].Gift].StarValue
+		}
 		var score int64
 		var at time.Time
 		var dq bool
@@ -313,7 +322,8 @@ func (s *Service) validate(ctx context.Context, in *Input) error {
 		return apperr.Validation.With("field", "endAt")
 	}
 	seen := map[int]bool{}
-	for _, p := range in.Prizes {
+	for i, p := range in.Prizes {
+		in.Prizes[i].GiftStars = 0 // worked out when the list is shown, never taken from the request
 		if seen[p.Place] || (p.Coins == 0 && p.Stars == 0 && p.Gift == "") {
 			return apperr.Validation.With("field", "prizes")
 		}
